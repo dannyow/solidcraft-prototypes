@@ -67,6 +67,15 @@ Only the handle in use should draw attention. While you move the feature, the ri
 
 The handles began as a spike in the app itself, for the Rest feature. Each change to the drawing meant rebuilding the app, so the work moved to a browser prototype: a small 3D model with the handles drawn from SVG files exported from Figma. A new drawing could be tried in seconds, and sizes, timings and behaviours could be compared side by side.
 
+The prototype is built to show the handles under the conditions they will meet in the app, so that what looks right in it has a fair chance of looking right there:
+
+- **The preview lags on purpose.** In SolidCraft the solid preview of a feature is recomputed in the background and trails the pointer. The prototype holds its preview back the same way (600 ms by default, adjustable) instead of showing an ideal instant update. That delay is the reason the footprint exists, and a prototype without it would hide the problem the footprint solves.
+- **The colours are the app's.** The viewport, the body, its edges and the preview blue are SolidCraft's own theme colours, in the dark and the light theme, so judgements about contrast carry over.
+- **The model has awkward faces.** A flat top, a slope and a curved boss show how the handles behave when the face is tilted away from the viewer or not flat at all.
+- **The drawings are the design files.** The handles are the SVG files exported from Figma, loaded as they are. A changed drawing can be dropped into the page and tried at once, with no translation step in between.
+- **The sizes are the app's units.** Sizes are given in screen points, the unit egui uses, so the numbers settled in the prototype can be carried into the app.
+- **Alternatives stay switchable.** Timings, scales, snapping and the competing ideas below are settings, so they can be compared side by side instead of being decided once and forgotten.
+
 Several decisions came from trying alternatives there:
 
 - **Flat on the screen or lying on the face.** The move marker stays flat on the screen, so its arrows are always easy to read. The ring lies on the face, because turning happens in the plane of the face and the ellipse makes that plane visible.

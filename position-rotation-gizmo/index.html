@@ -36,8 +36,9 @@ body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-s
 .app { height: 100%; display: flex; min-height: 0; }
 .vp { position: relative; flex: 1; min-width: 0; overflow: hidden; touch-action: none;
   background: linear-gradient(var(--vp-top), var(--vp-bottom)); }
-.vp[data-bg="dark"] { background: linear-gradient(#2c313a, #1a1d23); }
-.vp[data-bg="light"] { background: linear-gradient(#e7ebf1, #c9d1dc); }
+/* the viewport, body and preview colours are SolidCraft's own theme tokens (assets/styles/ui/palettes.rs) */
+.vp[data-bg="dark"] { background: #2e3440; }
+.vp[data-bg="light"] { background: linear-gradient(#f0f3f7, #cbd2dd); }
 .vp canvas { display: block; width: 100%; height: 100%; }
 .overlay { position: absolute; inset: 0; pointer-events: none; }
 .marker { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
@@ -51,7 +52,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-s
 .foot .edge { stroke: #15171c; stroke-width: 3.5; }
 .foot .core { stroke: #eef0f5; stroke-width: 1.5; }
 /* blue ghost: the preview's own blue, so white stays reserved for the handles */
-.foot.blue .edge { fill: rgba(77, 140, 255, .32); stroke: #2a5fc4; stroke-width: 1.2; }
+.foot.blue .edge { fill: rgba(112, 160, 226, .38); stroke: #4a78b8; stroke-width: 1.2; }
 .foot.blue .core { display: none; }
 @property --sweep { syntax: '<angle>'; inherits: false; initial-value: 180deg; }
 .ring { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: opacity 160ms ease; }
@@ -527,7 +528,7 @@ function range(id, key, fmt, after) {
 }
 const vp = document.getElementById('vp');
 segmented('mode', 'mode'); segmented('pin', 'pin'); segmented('anim', 'anim'); segmented('halo', 'halo', layoutImgs); segmented('foottoggle', 'foot');
-segmented('bg', 'bg', () => { vp.dataset.bg = S.bg; });
+segmented('bg', 'bg', () => { vp.dataset.bg = S.bg; bodyMat.color.setHex(THEME[S.bg].body); edgeMat.color.setHex(THEME[S.bg].edge); });
 vp.dataset.bg = S.bg;
 range('scale', 'scale', v => `${v} %`, () => { renderCards(); layoutImgs(); });
 range('hit', 'hit', v => `${v} px`);
@@ -613,8 +614,10 @@ controls.update();
 scene.add(new THREE.HemisphereLight(0xf2f5fa, 0x5a6270, 1.6));
 const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(120, -180, 260); scene.add(sun);
 
-const bodyMat = new THREE.MeshStandardMaterial({ color: 0xa6adb8, roughness: .55, metalness: .1, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
-const edgeMat = new THREE.LineBasicMaterial({ color: 0x23272e });
+// body and body_edge per viewport theme, as in the app
+const THEME = { dark: { body: 0x989ca2, edge: 0x101012 }, light: { body: 0xb0bac6, edge: 0x282c34 } };
+const bodyMat = new THREE.MeshStandardMaterial({ color: THEME[S.bg].body, roughness: .55, metalness: .1, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const edgeMat = new THREE.LineBasicMaterial({ color: THEME[S.bg].edge });
 const body = new THREE.Group(); scene.add(body);
 const pickables = [];
 function addPart(geo, at) {
@@ -633,8 +636,8 @@ addPart(cyl, new THREE.Vector3(-35, 10, 50));
 // the feature's preview: a translucent blue pad, like Rest's
 const padGeo = new THREE.BoxGeometry(36, 24, 6); padGeo.translate(0, 0, 3);
 const pad = new THREE.Group();
-pad.add(new THREE.Mesh(padGeo, new THREE.MeshStandardMaterial({ color: 0x4d8cff, transparent: true, opacity: .55, roughness: .4, depthWrite: false })));
-pad.add(new THREE.LineSegments(new THREE.EdgesGeometry(padGeo), new THREE.LineBasicMaterial({ color: 0x2a5fc4 })));
+pad.add(new THREE.Mesh(padGeo, new THREE.MeshStandardMaterial({ color: 0x70a0e2, transparent: true, opacity: .55, roughness: .4, depthWrite: false })));
+pad.add(new THREE.LineSegments(new THREE.EdgesGeometry(padGeo), new THREE.LineBasicMaterial({ color: 0x4a78b8 })));
 scene.add(pad);
 
 // place: where the marker and the footprint are (follows the pointer at once); shown: where the
