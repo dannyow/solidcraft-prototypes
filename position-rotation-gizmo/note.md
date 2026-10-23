@@ -1,6 +1,6 @@
-# A visual language for placement handles
+# Placement handles: notes from an experiment
 
-Some SolidCraft features are placed on a face of the model: a Rest pad, a Boss, a Snap Fit. Placing one means two things, choosing where it sits on the face and how it is turned. Today both are numbers in a dialog. This note describes handles that let you do both directly on the model, and the visual language they are drawn in. You can try them on a model in the [prototype](./).
+Some SolidCraft features are placed on a face of the model: a Rest pad, a Boss, a Snap Fit. Placing one means two things, choosing where it sits on the face and how it is turned. Today both are numbers in a dialog. This note describes handles that let you do both directly on the model, and the few visual rules I tried to draw them by. You can try them on a model in the [prototype](./).
 
 This is an early experiment and my current thinking, not a finished design. The prototype is a web page with a simple model; none of it runs in SolidCraft yet, and the real test will be how the handles feel in the app, on real parts.
 
@@ -12,11 +12,11 @@ That sets the tone for everything below. Handles stay quiet until you reach for 
 
 ## The problem
 
-A handle sits on top of the model, next to the feature's blue preview, the model's own edges and whatever else the view shows. It has to be found, read and used without a manual. Two handles on the same feature must not be confused with each other or with the preview they control. And the next manipulator SolidCraft adds should be able to use the same visual vocabulary instead of bringing its own.
+A handle sits on top of the model, next to the feature's blue preview, the model's own edges and whatever else the view shows. It has to be found, read and used without a manual. Two handles on the same feature must not be confused with each other or with the preview they control. And the next manipulator SolidCraft adds should be able to reuse the same visual rules instead of bringing its own.
 
 So the goal was a small set of visual rules that say what can be grabbed, what it will do and what it is doing now, with both handles built from those rules alone. If the rules are right, someone who has used one handle can read the next one without being told.
 
-## The language
+## The rules
 
 Each rule gives one visual element one meaning, and that meaning holds everywhere.
 
@@ -86,7 +86,7 @@ Several decisions came from trying alternatives there:
 
 ## Beyond these two handles
 
-Two handles for one kind of feature are only a start. A CAD application has many more things you could adjust on the model: distances, angles, radii, the direction of an extrusion, the size of a pattern. The bigger question is whether this language holds up across all of them, or which rules have to change once there are more handles than two.
+Two handles for one kind of feature are only a start. A CAD application has many more things you could adjust on the model: distances, angles, radii, the direction of an extrusion, the size of a pattern. The bigger question is whether these rules hold up across all of them, or which rules have to change once there are more handles than two.
 
 My guess is that the core carries over. A handle that sets a distance would be a single arrow, dotted at rest and solid while dragging, and a handle that sets an angle would use the diamond, so a new handle would mostly combine what the user has already seen. Whether that is true, and how several handles from different features share one view, is what the next experiments should find out.
 
