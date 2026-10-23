@@ -4,9 +4,9 @@ Design prototypes for [SolidCraft](https://github.com/tangency-labs/solidcraft),
 
 | folder | what it is |
 |---|---|
-| [position-rotation-gizmo](position-rotation-gizmo/) | Placement handles for a feature placed on a face: a marker to move it and a ring to turn it, tried on a small 3D model. |
+| [position-rotation-gizmo](position-rotation-gizmo/) | Placement handles for a feature placed on a face: a marker to move it and a ring to turn it, tried on a small 3D model, with a [design note](position-rotation-gizmo/note.md). |
 
-Short design notes live in [notes/](notes/).
+Each topic has its own folder: the prototype as `index.html` and, when there is one, a short design note as `note.md`.
 
 ## Running locally
 

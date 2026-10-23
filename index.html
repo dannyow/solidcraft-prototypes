@@ -12,8 +12,7 @@ main { max-width: 680px; margin: 0 auto; padding: 48px max(16px, env(safe-area-i
 h1 { font-size: 22px; margin: 0 0 8px; }
 p { margin: 0 0 12px; color: var(--muted); }
 a { color: var(--accent); }
-h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 36px 0 0; font-weight: 600; }
-h2 + p { margin-top: 12px; }
+h2 { font-size: 17px; margin: 40px 0 4px; }
 ul { list-style: none; padding: 0; margin: 12px 0 0; border-top: 1px solid var(--line); }
 li { padding: 14px 0; border-bottom: 1px solid var(--line); }
 li a { font-weight: 600; text-decoration: none; }
@@ -24,20 +23,20 @@ li p { margin: 4px 0 0; }
 <main>
   <h1>SolidCraft prototypes</h1>
   <p>Design prototypes by Daniel Owsianski for <a href="https://github.com/tangency-labs/solidcraft">SolidCraft</a>, an open-source parametric CAD application. They are personal experiments, not part of SolidCraft, and may change or disappear.</p>
-  <h2>Prototypes</h2>
-  <ul>
-    <li>
-      <a href="position-rotation-gizmo/">Placement handles: move and turn</a>
-      <p>A marker that moves a feature across the face it sits on and a ring that turns it, on a small 3D model. The drawings are SVG files you can swap in the page.</p>
-    </li>
-  </ul>
-  <h2>Design notes</h2>
-  <ul>
-    <li>
-      <a href="notes/placement-handles.html">Placement handles: move and turn</a>
-      <p>How the move marker and the turn ring read: what is white, what is dotted, what hover and the animations say, and what is still open.</p>
-    </li>
-  </ul>
+  <section>
+    <h2>Placement handles: move and turn</h2>
+    <p>A marker that moves a feature across the face it sits on and a ring that turns it.</p>
+    <ul>
+      <li>
+        <a href="position-rotation-gizmo/">Prototype</a>
+        <p>Both handles on a small 3D model, with the drawings as SVG files you can swap in the page.</p>
+      </li>
+      <li>
+        <a href="position-rotation-gizmo/note.html">Design note</a>
+        <p>How the handles read: what is white, what is dotted, what hover and the animations say, and what is still open.</p>
+      </li>
+    </ul>
+  </section>
 </main>
 </body>
 </html>

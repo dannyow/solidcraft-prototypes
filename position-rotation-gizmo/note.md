@@ -1,10 +1,11 @@
 ---
+layout: note
 title: "Placement handles: move and turn"
 ---
 
 # Placement handles: move and turn
 
-Notes on the handles for a SolidCraft feature placed on a face, such as Rest, Boss or Snap Fit: a marker that moves the feature across the face and a ring that turns it. Try them on a model in the [prototype](../position-rotation-gizmo/).
+Notes on the handles for a SolidCraft feature placed on a face, such as Rest, Boss or Snap Fit: a marker that moves the feature across the face and a ring that turns it. Try them on a model in the [prototype](./).
 
 ## How to read a handle
 
@@ -17,9 +18,9 @@ Notes on the handles for a SolidCraft feature placed on a face, such as Rest, Bo
 ## Move marker
 
 <div class="states">
-<figure><div class="tile"><img src="../position-rotation-gizmo/svg/marker/normal.svg" alt="Marker at rest: a dot with short dotted arms"></div><figcaption>Normal</figcaption></figure>
-<figure><div class="tile"><img src="../position-rotation-gizmo/svg/marker/hover.svg" alt="Marker under the pointer: longer dotted arms with arrowheads"></div><figcaption>Hover</figcaption></figure>
-<figure><div class="tile"><img src="../position-rotation-gizmo/svg/marker/active.svg" alt="Marker while dragging: solid arrows"></div><figcaption>Active</figcaption></figure>
+<figure><div class="tile"><img src="svg/marker/normal.svg" alt="Marker at rest: a dot with short dotted arms"></div><figcaption>Normal</figcaption></figure>
+<figure><div class="tile"><img src="svg/marker/hover.svg" alt="Marker under the pointer: longer dotted arms with arrowheads"></div><figcaption>Hover</figcaption></figure>
+<figure><div class="tile"><img src="svg/marker/active.svg" alt="Marker while dragging: solid arrows"></div><figcaption>Active</figcaption></figure>
 </div>
 
 The marker sits at the feature's place. While you drag it, the feature's footprint follows the pointer as a blue ghost on the face. The solid preview catches up when the app has recomputed it, so the ghost shows where the feature is going before the preview gets there.
@@ -27,10 +28,10 @@ The marker sits at the feature's place. While you drag it, the feature's footpri
 ## Turn ring
 
 <div class="states ring">
-<figure><div class="tile"><img src="../position-rotation-gizmo/svg/ring/normal.svg" alt="Ring at rest: a dotted arc with the diamond grip"></div><figcaption>Normal</figcaption></figure>
-<figure><div class="tile"><img src="../position-rotation-gizmo/svg/ring/hover.svg" alt="Ring under the pointer: the full dotted circle"></div><figcaption>Hover</figcaption></figure>
-<figure><div class="tile"><img src="../position-rotation-gizmo/svg/ring/active.svg" alt="Ring while turning: a solid arc around the grip"></div><figcaption>Active</figcaption></figure>
-<figure><div class="tile"><img src="../position-rotation-gizmo/svg/ring/compass.svg" alt="Compass: four short ticks at north, east, south and west"></div><figcaption>Compass</figcaption></figure>
+<figure><div class="tile"><img src="svg/ring/normal.svg" alt="Ring at rest: a dotted arc with the diamond grip"></div><figcaption>Normal</figcaption></figure>
+<figure><div class="tile"><img src="svg/ring/hover.svg" alt="Ring under the pointer: the full dotted circle"></div><figcaption>Hover</figcaption></figure>
+<figure><div class="tile"><img src="svg/ring/active.svg" alt="Ring while turning: a solid arc around the grip"></div><figcaption>Active</figcaption></figure>
+<figure><div class="tile"><img src="svg/ring/compass.svg" alt="Compass: four short ticks at north, east, south and west"></div><figcaption>Compass</figcaption></figure>
 </div>
 
 The ring lies on the face at the marker's height, so moving and turning share one centre, and it is drawn in perspective with the face. Dragging the grip turns the feature. The ring keeps its size however far it turns.

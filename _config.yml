@@ -3,12 +3,8 @@
 exclude:
   - CLAUDE.md
   - THIRD_PARTY.md
+  - README.md
   - tools/
   - media/
   - data/
 
-defaults:
-  - scope:
-      path: "notes"
-    values:
-      layout: note

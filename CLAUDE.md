@@ -10,8 +10,9 @@ Browser prototypes for SolidCraft, published as a website
 - `position-rotation-gizmo/svg/marker/` and `svg/ring/`: the handle drawings the page loads as its
   defaults. Marker frames are 400 x 400 with the dot at the centre of the viewBox; ring frames
   are 600 x 600 with the circle (radius 125) at the centre and the grip on the right.
-- `notes/`: short design notes in Markdown; GitHub Pages renders `notes/x.md` as `notes/x.html`.
-  Link each from the front page.
+- One folder per topic: the prototype as `index.html` and, when there is one, a design note as
+  `note.md` (front matter `layout: note`; GitHub Pages renders it as `note.html` with
+  `_layouts/note.html`). The front page has one section per topic linking both.
 - `_config.yml`: Jekyll settings for Pages; files for the repository only are excluded from the site.
 - Each page keeps its settings in `localStorage` under its own key (the folder name), because all
   pages of the site share one browser origin.
