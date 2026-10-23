@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Placement Handle Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen tool. The 3D viewport fills the left, a narrow settings column on the right; stacked on phones. */
+:root {
+  --bg: #eef0f4;
+  --panel: #f7f8fa;
+  --fg: #1c2230;
+  --muted: #5d6779;
+  --line: #d5dae3;
+  --accent: #2f6fdf;
+  --chip: #e3e8f1;
+  --vp-top: #e7ebf1;
+  --vp-bottom: #c9d1dc;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15181e; --panel: #1b1f27; --fg: #e4e8ef; --muted: #98a2b3; --line: #2c323d;
+    --accent: #6b9cff; --chip: #262c37; --vp-top: #2c313a; --vp-bottom: #1a1d23; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15181e; --panel: #1b1f27; --fg: #e4e8ef; --muted: #98a2b3; --line: #2c323d;
+  --accent: #6b9cff; --chip: #262c37; --vp-top: #2c313a; --vp-bottom: #1a1d23; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 13px; }
+.app { height: 100%; display: flex; min-height: 0; }
+.vp { position: relative; flex: 1; min-width: 0; overflow: hidden; touch-action: none;
+  background: linear-gradient(var(--vp-top), var(--vp-bottom)); }
+.vp[data-bg="dark"] { background: linear-gradient(#2c313a, #1a1d23); }
+.vp[data-bg="light"] { background: linear-gradient(#e7ebf1, #c9d1dc); }
+.vp canvas { display: block; width: 100%; height: 100%; }
+.overlay { position: absolute; inset: 0; pointer-events: none; }
+.marker { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.marker img { position: absolute; max-width: none; max-height: none; opacity: 0; transform-origin: 50% 50%;
+  transition: opacity var(--fade, 120ms) ease, transform var(--fade, 120ms) cubic-bezier(.215, .61, .355, 1);
+  user-select: none; -webkit-user-drag: none; }
+.marker img.on { opacity: 1; }
+.marker img.instant { transition: none; }
+.foot { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.foot polygon { fill: none; stroke-linejoin: round; }
+.foot .edge { stroke: #15171c; stroke-width: 3.5; }
+.foot .core { stroke: #eef0f5; stroke-width: 1.5; }
+/* blue ghost: the preview's own blue, so white stays reserved for the handles */
+.foot.blue .edge { fill: rgba(77, 140, 255, .32); stroke: #2a5fc4; stroke-width: 1.2; }
+.foot.blue .core { display: none; }
+@property --sweep { syntax: '<angle>'; inherits: false; initial-value: 180deg; }
+.ring { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: opacity 160ms ease; }
+.marker { transition: opacity 160ms ease; }
+/* the ring's states open around the circle from the grip (--g, CSS angle from the top, clockwise) */
+#ring img { --sweep: 180deg;
+  -webkit-mask-image: conic-gradient(from calc(var(--g, 90deg) - var(--sweep)), #000 0deg calc(2 * var(--sweep)), transparent calc(2 * var(--sweep)));
+  mask-image: conic-gradient(from calc(var(--g, 90deg) - var(--sweep)), #000 0deg calc(2 * var(--sweep)), transparent calc(2 * var(--sweep)));
+  transition: opacity var(--rfade, 220ms) ease, --sweep var(--rfade, 220ms) cubic-bezier(.215, .61, .355, 1); }
+#ring img.instant { transition: none; }
+.ring img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; max-height: none; opacity: 0;
+  transition: opacity var(--fade, 120ms) ease; user-select: none; -webkit-user-drag: none; }
+.ring img.on { opacity: 1; }
+.anglabel { position: absolute; left: 0; top: 0; font: 500 12px var(--mono); color: #f2f4f8; background: rgba(15, 18, 24, .75);
+  padding: 2px 6px; border-radius: 4px; pointer-events: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.halo { position: absolute; border-radius: 50%; background: rgba(107, 156, 255, .22); opacity: 0; transition: opacity var(--fade, 120ms) ease; }
+.halo.on { opacity: 1; }
+.hint { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: 12px; font: 12px var(--mono);
+  color: #e9edf3; background: rgba(15, 18, 24, .55); padding: 6px 9px; border-radius: 6px; pointer-events: none; }
+.readout { position: absolute; right: 12px; top: 12px; font: 12px/1.5 var(--mono); color: #e9edf3;
+  background: rgba(15, 18, 24, .55); padding: 6px 9px; border-radius: 6px; pointer-events: none; font-variant-numeric: tabular-nums; }
+
+aside { width: 340px; flex: none; overflow-y: auto; background: var(--panel); border-left: 1px solid var(--line);
+  padding-block: 18px 28px; padding-left: 18px; padding-right: max(18px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 14px; }
+h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); line-height: 1.5; }
+details { border-top: 1px solid var(--line); padding-top: 12px; }
+summary { font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); cursor: pointer;
+  list-style: none; display: flex; justify-content: space-between; align-items: center; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font-size: 14px; }
+details[open] > summary::after { content: "−"; }
+details .body { display: flex; flex-direction: column; margin-top: 12px; }
+details .body > .note { margin: 0 0 12px; }
+details .body > .cards { margin-bottom: 8px; }
+details .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.anglabel.snapped { background: var(--accent); color: #fff; }
+h2 { font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+section { display: flex; flex-direction: column; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--bg); min-width: 0; }
+.card.drop { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.card .name { font-weight: 500; font-size: 12px; }
+.thumb { aspect-ratio: 1; max-width: 100%; border-radius: 5px; display: grid; place-items: center; overflow: hidden;
+  background: #8fb7f2; }
+.thumb img { max-width: 92%; max-height: 92%; }
+.card .size { font: 11px var(--mono); color: var(--muted); }
+.card .acts { display: flex; gap: 4px; flex-wrap: wrap; }
+button, .file { font: 500 11.5px var(--sans); color: var(--fg); background: var(--chip); border: 1px solid var(--line);
+  border-radius: 5px; padding: 3px 7px; cursor: pointer; }
+button:hover, .file:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, textarea:focus-visible, .file:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.file input { display: none; }
+.paste { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.paste textarea { width: 100%; box-sizing: border-box; height: 90px; font: 11px var(--mono); background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px; resize: vertical; }
+.paste .row { display: flex; gap: 6px; align-items: center; }
+.msg { font-size: 12px; color: var(--muted); min-height: 1em; }
+.note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 8px 0 0; }
+.field { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; margin-bottom: 12px; }
+.field label { font-weight: 500; }
+.field output { font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.field input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; margin-bottom: 12px; }
+.seg button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 6px 4px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.label { font-weight: 500; margin-bottom: 6px; }
+@media (max-width: 760px) {
+  .app { flex-direction: column; }
+  .vp { flex: none; height: 58%; }
+  aside { width: auto; border-left: 0; border-top: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) { .marker img { transition: none; } }
+html { color-scheme: light; }
+body { margin: 0; font: 14px system-ui, -apple-system, "Segoe UI", sans-serif; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+.byline { margin: 6px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.byline a { color: inherit; }
+.lede a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="vp" id="vp" data-bg="dark">
+    <div class="overlay"><div class="ring" id="compass"></div><div class="ring" id="ring"></div><svg class="foot" id="foot" style="display:none"><polygon class="edge"/><polygon class="core"/></svg><div class="marker" id="marker"></div><div class="anglabel" id="anglabel" hidden></div></div>
+    <div class="readout" id="readout"></div>
+    <div class="hint">Drag the marker to move · drag the ring's grip to turn · drag elsewhere to orbit</div>
+  </div>
+  <aside>
+    <div>
+      <h1>Placement Handle Lab</h1>
+      <p class="lede">Placement handles for <a href="https://github.com/tangency-labs/solidcraft">SolidCraft</a> features placed on a face (Rest, Boss, Snap Fit): a marker to move the feature and a ring to turn it.</p>
+      <p class="byline">A personal design prototype by Daniel Owsianski, not part of SolidCraft. <a href="../">More prototypes</a></p>
+    </div>
+    <div class="paste" id="pastebox" hidden>
+      <div class="label" id="pastelabel">Paste SVG</div>
+      <textarea id="pastearea" placeholder="Figma: right-click the frame > Copy/Paste as > Copy as SVG, then paste here"></textarea>
+      <div class="row"><button id="pasteok">Use this SVG</button><button id="pastecancel">Cancel</button></div>
+    </div>
+    <div class="msg" id="msg"></div>
+
+    <details data-k="marker" open>
+      <summary>Move marker</summary>
+      <div class="body">
+        <div class="cards" id="cards"></div>
+        <p class="note">Frames of one size with the dot in the centre. Drop all three at once: names with normal, hover and drag (or active) pick the card.</p>
+        <div class="label">Lies</div>
+        <div class="seg" id="mode">
+          <button data-v="screen">Flat on screen</button>
+          <button data-v="face">On the face</button>
+        </div>
+        <div class="field"><label for="scale">Scale</label><output id="scaleout"></output><input type="range" id="scale" min="5" max="100" step="1"></div>
+        <div class="label">Between states</div>
+        <div class="seg" id="anim">
+          <button data-v="grow">Grow, like the app</button>
+          <button data-v="fade">Crossfade</button>
+        </div>
+        <div class="field"><label for="fade">Transition time</label><output id="fadeout"></output><input type="range" id="fade" min="0" max="400" step="10"></div>
+        <div class="label">While dragging</div>
+        <div class="seg" id="halo">
+          <button data-v="on">Halo</button>
+          <button data-v="off">No halo</button>
+        </div>
+      </div>
+    </details>
+
+    <details data-k="ring" open>
+      <summary>Turn ring</summary>
+      <div class="body">
+        <div class="cards" id="rcards"></div>
+        <p class="note">600 × 600 frames with the circle in the centre. Names with rot, turn or ring go here; compass or nswe goes to the compass card.</p>
+        <div class="seg" id="ringtoggle">
+          <button data-v="on">Ring</button>
+          <button data-v="off">No ring</button>
+        </div>
+        <div class="label">Size</div>
+        <div class="seg" id="ringsize">
+          <button data-v="scale">SVG scale, like the marker</button>
+          <button data-v="mm">Fixed on the model</button>
+        </div>
+        <div class="field"><label for="ringScale">Scale</label><output id="ringScaleout"></output><input type="range" id="ringScale" min="5" max="100" step="1"></div>
+        <div class="field"><label for="ringR">Radius on the model</label><output id="ringRout"></output><input type="range" id="ringR" min="15" max="60" step="1"></div>
+        <div class="field"><label for="ringSvgR">Circle radius in the SVG</label><output id="ringSvgRout"></output><input type="range" id="ringSvgR" min="40" max="290" step="1"></div>
+        <div class="field"><label for="gripAt">Grip at</label><output id="gripAtout"></output><input type="range" id="gripAt" min="0" max="345" step="15"></div>
+        <div class="label">Between states</div>
+        <div class="seg" id="ringanim">
+          <button data-v="sweep">Sweep from the grip</button>
+          <button data-v="fade">Crossfade</button>
+        </div>
+        <div class="field"><label for="ringFade">Transition time</label><output id="ringFadeout"></output><input type="range" id="ringFade" min="0" max="600" step="10"></div>
+        <div class="label">Compass</div>
+        <div class="seg" id="compasswhen">
+          <button data-v="turn">Turning</button>
+          <button data-v="hot">Over + turning</button>
+          <button data-v="always">Always</button>
+          <button data-v="off">Off</button>
+        </div>
+        <div class="label">N, E, S, W</div>
+        <div class="seg" id="snapnswe">
+          <button data-v="on">Pull in</button>
+          <button data-v="only">Only these</button>
+          <button data-v="off">Off</button>
+        </div>
+        <div class="field"><label for="nsweRange">Pulls in within</label><output id="nsweRangeout"></output><input type="range" id="nsweRange" min="1" max="20" step="1"></div>
+        <div class="field"><label for="snap">Steps elsewhere</label><output id="snapout"></output><input type="range" id="snap" min="0" max="15" step="1"></div>
+      </div>
+    </details>
+
+    <details data-k="use" open>
+      <summary>While a handle is in use</summary>
+      <div class="body">
+        <div class="label">Footprint (moving only)</div>
+        <div class="seg" id="foottoggle">
+          <button data-v="on">Show</button>
+          <button data-v="off">Hide</button>
+        </div>
+        <div class="seg" id="footstyle">
+          <button data-v="blue">Blue ghost</button>
+          <button data-v="white">White outline</button>
+        </div>
+        <div class="field"><label for="lag">Preview lag</label><output id="lagout"></output><input type="range" id="lag" min="0" max="600" step="10"></div>
+        <div class="field"><label for="dim">The other handle</label><output id="dimout"></output><input type="range" id="dim" min="0" max="100" step="5"></div>
+        <div class="field"><label for="hit">Grab radius (both)</label><output id="hitout"></output><input type="range" id="hit" min="6" max="40" step="1"></div>
+      </div>
+    </details>
+
+    <details data-k="view">
+      <summary>View</summary>
+      <div class="body">
+        <div class="label">Show state</div>
+        <div class="seg" id="pin">
+          <button data-v="auto">Live</button>
+          <button data-v="normal">Normal</button>
+          <button data-v="hover">Over</button>
+          <button data-v="drag">Active</button>
+        </div>
+        <div class="field"><label for="turn">Turn of the pad</label><output id="turnout"></output><input type="range" id="turn" min="0" max="355" step="5"></div>
+        <div class="label">Viewport</div>
+        <div class="seg" id="bg">
+          <button data-v="dark">Dark</button>
+          <button data-v="light">Light</button>
+        </div>
+        <p class="note">Sizes are CSS pixels, the same as egui points at 1x; a Retina screen draws both at twice the pixels.</p>
+      </div>
+    </details>
+
+    <details data-k="settings">
+      <summary>Settings</summary>
+      <div class="body">
+        <p class="note">Every change, SVG files included, is kept in this browser across reloads and new versions of the page. Copy them for a backup or another browser.</p>
+        <div class="acts">
+          <button id="copyset">Copy settings</button>
+          <button id="pasteset">Paste settings</button>
+          <button id="resetset">Reset everything</button>
+        </div>
+        <div class="paste" id="setbox" hidden>
+          <textarea id="setarea" placeholder="Paste copied settings here"></textarea>
+          <div class="row"><button id="setok">Use these settings</button><button id="setcancel">Cancel</button></div>
+        </div>
+        <div class="msg" id="setmsg"></div>
+      </div>
+    </details>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- settings ----------
+// New defaults only fill in settings that are missing, they never reset yours.
+// one key per prototype: every page on this site shares the browser storage of its address
+const KEY = 'position-rotation-gizmo';
+const OLD_KEYS = [];
+const defaults = { mode: 'screen', pin: 'auto', anim: 'grow', halo: 'on', foot: 'on', lag: 150, scale: 25, hit: 18, fade: 120, turn: 0, bg: 'dark', svgs: {}, ring: 'on', ringR: 30, ringSvgR: 125, snap: 5, ringSize: 'scale', gripAt: 0, compass: 'turn', ringAnim: 'sweep', ringFade: 220, dim: 25, footStyle: 'blue', snapNSWE: 'on', nsweRange: 8, closed: {} };
+let S = { ...defaults };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+try {
+  let raw = localStorage.getItem(KEY);
+  if (raw == null) { const old = OLD_KEYS.find(k => localStorage.getItem(k) != null); if (old) raw = localStorage.getItem(old); }
+  S = { ...defaults, ...JSON.parse(raw || '{}') };
+  if (raw != null) save();
+} catch (e) {}
+// the ring starts at the marker's scale, so the two drawings match pixel for pixel
+if (S.ringScale == null) S.ringScale = S.scale;
+
+// ---------- default shapes, traced from the Figma sketch ----------
+const LIGHT = '#EEF0F5', EDGE = '#15171C';
+function arms(c, f) { let d = ''; for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) d += f(c, dx, dy); return d; }
+const P = (c, dx, dy, t) => [c + dx * t, c + dy * t];
+const seg = (a, b) => `M${a[0]} ${a[1]}L${b[0]} ${b[1]}`;
+function dashes(c, dx, dy, from, n, len, gap) {
+  let d = ''; for (let i = 0; i < n; i++) { const t = from + i * (len + gap); d += seg(P(c, dx, dy, t), P(c, dx, dy, t + len)); } return d;
+}
+function chevron(c, dx, dy, tip, a) {
+  const T = P(c, dx, dy, tip), k = a * Math.SQRT1_2, px = -dy, py = dx;
+  const A = [T[0] - dx * k + px * k, T[1] - dy * k + py * k], B = [T[0] - dx * k - px * k, T[1] - dy * k - py * k];
+  return `M${A[0]} ${A[1]}L${T[0]} ${T[1]}L${B[0]} ${B[1]}`;
+}
+function svgOf(d) {
+  const n = 272, c = n / 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${n}" height="${n}" viewBox="0 0 ${n} ${n}" fill="none" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path d="${d}" stroke="${EDGE}" stroke-width="11"/><path d="${d}" stroke="${LIGHT}" stroke-width="7"/>` +
+    `<circle cx="${c}" cy="${c}" r="12" fill="${LIGHT}" stroke="${EDGE}" stroke-width="2.5"/></svg>`;
+}
+const C = 136;
+const SKETCH_SVG = {
+  normal: svgOf(arms(C, (c, x, y) => dashes(c, x, y, 22, 3, 14, 10))),
+  hover: svgOf(arms(C, (c, x, y) => dashes(c, x, y, 22, 4, 14, 10) + seg(P(c, x, y, 118), P(c, x, y, 124)) + chevron(c, x, y, 124, 22))),
+  drag: svgOf(arms(C, (c, x, y) => seg(P(c, x, y, 24), P(c, x, y, 124)) + chevron(c, x, y, 124, 22))),
+};
+// the three states as Daniel drew them in Figma (2026-10-23), 400 x 400, viewBox shifted so the dot (212.5, 202.5) is the centre
+// the defaults are the drawings in svg/ next to this page; these traced shapes are the fallback
+const DEFAULT_SVG = { ...SKETCH_SVG };
+const STATES = [['normal', 'Normal'], ['hover', 'Mouse over'], ['drag', 'Down + drag']];
+const RSTATES = [['rnormal', 'Normal'], ['rhover', 'Mouse over'], ['rdrag', 'Turning']];
+const COMPASS = [['rcompass', 'Compass (fixed)']];
+const ALL = [...STATES, ...RSTATES, ...COMPASS];
+// Placeholder turn rings from the paper sketch until the Figma ones arrive: a thin ring with a
+// grip at the bottom, two long pills either side of a ball with a short pill past each end.
+function ringSvg(ring, grip, cap, knob) {
+  const n = 600, c = 300, r = 125, rad = a => a * Math.PI / 180;
+  const pt = a => `${(c + r * Math.cos(rad(a))).toFixed(2)} ${(c + r * Math.sin(rad(a))).toFixed(2)}`;
+  const arc = (a1, a2) => `M${pt(a1)}A${r} ${r} 0 0 1 ${pt(a2)}`;
+  const circle = `M${c - r} ${c}A${r} ${r} 0 1 1 ${c + r} ${c}A${r} ${r} 0 1 1 ${c - r} ${c}`;
+  const g = arc(90 + 9, 90 + grip) + arc(90 - grip, 90 - 9) + arc(90 + cap, 90 + cap + 6) + arc(90 - cap - 6, 90 - cap);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${n}" height="${n}" viewBox="0 0 ${n} ${n}" fill="none" stroke-linecap="round">` +
+    `<path d="${circle}" stroke="${EDGE}" stroke-width="${ring + 2.5}"/><path d="${circle}" stroke="${LIGHT}" stroke-width="${ring}"/>` +
+    `<path d="${g}" stroke="${EDGE}" stroke-width="15"/><path d="${g}" stroke="${LIGHT}" stroke-width="11"/>` +
+    `<circle cx="${c}" cy="${c + r}" r="${knob}" fill="${LIGHT}" stroke="${EDGE}" stroke-width="2.5"/></svg>`;
+}
+// the turn ring as Daniel drew it in Figma (2026-10-23): 600 x 600, circle r 125 about the centre,
+// grip on the right (0 degrees); ringSvg above stays as the paper-sketch fallback
+const SKETCH_RING = { rnormal: ringSvg(2, 36, 44, 16), rhover: ringSvg(3, 50, 58, 18), rdrag: ringSvg(4, 50, 58, 20) };
+// placeholder compass until the Figma one arrives: four short ticks at N, E, S, W on the circle
+DEFAULT_SVG.rcompass = (() => {
+  const t = (x1, y1, x2, y2) => `M${x1} ${y1}L${x2} ${y2}`;
+  const d = t(295, 175, 305, 175) + t(425, 295, 425, 305) + t(295, 425, 305, 425) + t(175, 295, 175, 305);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" fill="none" stroke-linecap="round">` +
+    `<path d="${d}" stroke="${EDGE}" stroke-width="8.5"/><path d="${d}" stroke="${LIGHT}" stroke-width="5"/></svg>`;
+})();
+// the compass as Daniel drew it in Figma (NWSE.svg, 2026-10-23), replacing the placeholder above
+Object.assign(DEFAULT_SVG, SKETCH_RING);
+const FILES = {
+  normal: 'svg/marker/normal.svg', hover: 'svg/marker/hover.svg', drag: 'svg/marker/active.svg',
+  rnormal: 'svg/ring/normal.svg', rhover: 'svg/ring/hover.svg', rdrag: 'svg/ring/active.svg', rcompass: 'svg/ring/compass.svg',
+};
+const missing = [];
+await Promise.all(Object.entries(FILES).map(async ([k, path]) => {
+  try { const r = await fetch(path); if (!r.ok) throw new Error(r.status); DEFAULT_SVG[k] = (await r.text()).trim(); } catch (e) { missing.push(path); }
+}));
+
+// ---------- SVG loading ----------
+const shapes = {}; // state -> { url, w, h }
+const markerEl = document.getElementById('marker');
+const imgs = {};
+const haloEl = document.createElement('div'); haloEl.className = 'halo'; markerEl.appendChild(haloEl);
+for (const [k] of STATES) { const im = document.createElement('img'); im.alt = ''; im.draggable = false; markerEl.appendChild(im); imgs[k] = im; }
+const ringEl = document.getElementById('ring');
+for (const [k] of RSTATES) { const im = document.createElement('img'); im.alt = ''; im.draggable = false; ringEl.appendChild(im); imgs[k] = im; }
+const compassEl = document.getElementById('compass');
+{ const im = document.createElement('img'); im.alt = ''; im.draggable = false; im.className = 'on'; compassEl.appendChild(im); imgs.rcompass = im; }
+
+// How far a drawing reaches from its centre (SVG units), measured from what is drawn, so the
+// grow transition can start the next state at the size of the one before.
+function measureReach(text, w, h) {
+  const host = document.createElement('div');
+  host.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden';
+  host.innerHTML = text; document.body.appendChild(host);
+  try {
+    const svg = host.querySelector('svg');
+    const vb = (svg.getAttribute('viewBox') || `0 0 ${w} ${h}`).split(/[\s,]+/).map(Number);
+    const cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const el of svg.querySelectorAll('path, circle, rect, line, polyline, polygon, ellipse, use')) {
+      if (el.closest('mask, defs, clipPath')) continue;
+      const b = el.getBBox(); if (!b.width && !b.height) continue;
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);
+    }
+    const r = Math.max(cx - x0, x1 - cx, cy - y0, y1 - cy);
+    return Number.isFinite(r) && r > 0 ? r * (w / vb[2]) : Math.max(w, h) / 2;
+  } catch (e) { return Math.max(w, h) / 2; } finally { host.remove(); }
+}
+
+function parseSvg(text) {
+  const doc = new DOMParser().parseFromString(text.trim(), 'image/svg+xml');
+  const svg = doc.documentElement;
+  if (!svg || svg.nodeName.toLowerCase() !== 'svg' || doc.querySelector('parsererror')) throw new Error('That is not an SVG. Paste the text that starts with <svg.');
+  let w = parseFloat(svg.getAttribute('width')), h = parseFloat(svg.getAttribute('height'));
+  const vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+  if (!(w > 0 && h > 0) && vb.length === 4) { w = vb[2]; h = vb[3]; }
+  if (!(w > 0 && h > 0)) throw new Error('The SVG has no size: it needs width and height, or a viewBox.');
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+  if (!svg.getAttribute('xmlns')) svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  return { text: new XMLSerializer().serializeToString(svg), w, h };
+}
+function applyShape(state, text) {
+  const p = parseSvg(text);
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(p.text);
+  shapes[state] = { url, w: p.w, h: p.h, reach: measureReach(p.text, p.w, p.h), custom: text !== DEFAULT_SVG[state] };
+  imgs[state].src = url;
+  renderCards(); layoutImgs();
+}
+function setShape(state, text) {
+  applyShape(state, text);
+  if (text === DEFAULT_SVG[state]) delete S.svgs[state]; else S.svgs[state] = text;
+  save();
+}
+
+// ---------- cards ----------
+const cardsEl = document.getElementById('cards'), msg = document.getElementById('msg');
+const say = t => { msg.textContent = t; };
+if (missing.length) say(`Could not load ${missing.join(', ')}: showing the traced fallback shapes. Serve the folder over http, not file://.`);
+let pasteFor = null;
+const rcardsEl = document.getElementById('rcards');
+function renderCards() {
+  cardsEl.innerHTML = ''; rcardsEl.innerHTML = '';
+  for (const [k, name] of ALL) {
+    const sh = shapes[k]; if (!sh) continue;
+    const ringCard = RSTATES.some(([r]) => r === k) || k === 'rcompass';
+    const card = document.createElement('div'); card.className = 'card';
+    const px = v => Math.round(v * S.scale / 100);
+    card.innerHTML = `<div class="name">${name}</div><div class="thumb"><img alt="${name} marker" src="${sh.url}"></div>` +
+      `<div class="size">${ringCard ? `${sh.w}×${sh.h} SVG${sh.custom ? '' : ' · Figma'}` : `${px(sh.w)}×${px(sh.h)} px${sh.custom ? '' : ' · Figma'}`}</div>` +
+      `<div class="acts"><button data-act="paste">Paste</button><label class="file">File<input type="file" accept=".svg,image/svg+xml"></label>` +
+      (sh.custom ? `<button data-act="reset">Reset</button>` : '') + `</div>`;
+    card.querySelector('[data-act=paste]').onclick = () => openPaste(k, name);
+    const r = card.querySelector('[data-act=reset]'); if (r) r.onclick = () => { setShape(k, DEFAULT_SVG[k]); say(`${name}: back to the default drawing.`); };
+    card.querySelector('input[type=file]').onchange = e => { const f = e.target.files[0]; if (f) readFile(f, k); };
+    card.ondragover = e => { e.preventDefault(); card.classList.add('drop'); };
+    card.ondragleave = () => card.classList.remove('drop');
+    card.ondrop = e => { e.preventDefault(); e.stopPropagation(); card.classList.remove('drop'); const fs = [...e.dataTransfer.files]; if (fs.length === 1) readFile(fs[0], k); else dropMany(fs); };
+    (ringCard ? rcardsEl : cardsEl).appendChild(card);
+  }
+}
+function readFile(f, k) {
+  f.text().then(t => { try { setShape(k, t); say(`${ALL.find(s => s[0] === k)[1]}${k.startsWith('r') ? ' (ring)' : ''}: loaded ${f.name}.`); } catch (e) { say(e.message); } });
+}
+function stateFromName(n) {
+  n = n.toLowerCase();
+  if (/compass|nswe|cardinal/.test(n)) return 'rcompass';
+  const pre = /rot|turn|ring|knob/.test(n) ? 'r' : '';
+  if (/drag|down|active|press/.test(n)) return pre + 'drag';
+  if (/hover|over/.test(n)) return pre + 'hover';
+  if (/normal|rest|idle/.test(n)) return pre + 'normal';
+  return null;
+}
+function dropMany(fs) {
+  const miss = [];
+  for (const f of fs) { const k = stateFromName(f.name); if (k) readFile(f, k); else miss.push(f.name); }
+  if (miss.length) say(`Not matched to a state: ${miss.join(', ')}. Drop it on its card.`);
+}
+document.querySelector('aside').addEventListener('dragover', e => e.preventDefault());
+document.querySelector('aside').addEventListener('drop', e => { e.preventDefault(); dropMany([...e.dataTransfer.files]); });
+const pastebox = document.getElementById('pastebox'), pastearea = document.getElementById('pastearea');
+function openPaste(k, name) { pasteFor = k; document.getElementById('pastelabel').textContent = `Paste SVG for ${name}`; pastebox.hidden = false; pastearea.value = ''; pastearea.focus(); }
+document.getElementById('pasteok').onclick = () => {
+  try { setShape(pasteFor, pastearea.value); pastebox.hidden = true; say('SVG loaded.'); } catch (e) { say(e.message); }
+};
+document.getElementById('pastecancel').onclick = () => { pastebox.hidden = true; };
+
+for (const [k] of ALL) {
+  try { applyShape(k, S.svgs[k] || DEFAULT_SVG[k]); } catch (e) { delete S.svgs[k]; applyShape(k, DEFAULT_SVG[k]); }
+}
+
+// ---------- settings backup ----------
+{
+  const box = document.getElementById('setbox'), area = document.getElementById('setarea'), m = document.getElementById('setmsg');
+  const reset = document.getElementById('resetset');
+  document.getElementById('copyset').onclick = () => {
+    const text = JSON.stringify({ handleLab: 1, ...S });
+    const fallback = () => { box.hidden = false; area.value = text; area.select(); m.textContent = 'Copying is blocked here: the settings are selected below, press Cmd+C.'; };
+    try { navigator.clipboard.writeText(text).then(() => { m.textContent = 'Settings copied, marker files included.'; }, fallback); } catch (e) { fallback(); }
+  };
+  document.getElementById('pasteset').onclick = () => { box.hidden = false; area.value = ''; area.focus(); m.textContent = ''; };
+  document.getElementById('setcancel').onclick = () => { box.hidden = true; };
+  document.getElementById('setok').onclick = () => {
+    try {
+      const o = JSON.parse(area.value);
+      if (!o || o.handleLab !== 1) throw new Error();
+      delete o.handleLab; S = { ...defaults, ...o }; save(); location.reload();
+    } catch (e) { m.textContent = 'These are not copied settings from this page.'; }
+  };
+  let armed = false;
+  reset.onclick = () => {
+    if (!armed) { armed = true; reset.textContent = 'Click again to reset'; setTimeout(() => { armed = false; reset.textContent = 'Reset everything'; }, 3000); return; }
+    S = { ...defaults, svgs: {} }; save(); location.reload();
+  };
+}
+
+// ---------- controls ----------
+function segmented(id, key, after) {
+  const el = document.getElementById(id);
+  const sync = () => el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S[key])));
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S[key] = b.dataset.v; sync(); save(); after && after(); });
+  sync();
+}
+function range(id, key, fmt, after) {
+  const el = document.getElementById(id), out = document.getElementById(id + 'out');
+  el.value = S[key]; out.textContent = fmt(S[key]);
+  el.addEventListener('input', () => { S[key] = +el.value; out.textContent = fmt(S[key]); save(); after && after(); });
+}
+const vp = document.getElementById('vp');
+segmented('mode', 'mode'); segmented('pin', 'pin'); segmented('anim', 'anim'); segmented('halo', 'halo', layoutImgs); segmented('foottoggle', 'foot');
+segmented('bg', 'bg', () => { vp.dataset.bg = S.bg; });
+vp.dataset.bg = S.bg;
+range('scale', 'scale', v => `${v} %`, () => { renderCards(); layoutImgs(); });
+range('hit', 'hit', v => `${v} px`);
+range('lag', 'lag', v => v ? `${v} ms` : 'none');
+range('fade', 'fade', v => `${v} ms`, () => markerEl.style.setProperty('--fade', S.fade + 'ms'));
+range('turn', 'turn', v => `${v}°`, () => placePad());
+segmented('ringtoggle', 'ring');
+range('ringR', 'ringR', v => `${v} mm`);
+range('ringScale', 'ringScale', v => `${v} %`);
+const syncRingSize = () => {
+  document.getElementById('ringScale').closest('.field').hidden = S.ringSize !== 'scale';
+  document.getElementById('ringR').closest('.field').hidden = S.ringSize === 'scale';
+};
+segmented('ringsize', 'ringSize', syncRingSize); syncRingSize();
+range('ringSvgR', 'ringSvgR', v => `${v} px`);
+range('snap', 'snap', v => v ? `${v}°` : 'off');
+segmented('compasswhen', 'compass');
+segmented('ringanim', 'ringAnim');
+segmented('footstyle', 'footStyle');
+const syncSnap = () => {
+  document.getElementById('nsweRange').closest('.field').hidden = S.snapNSWE !== 'on';
+  document.getElementById('snap').closest('.field').hidden = S.snapNSWE === 'only';
+};
+segmented('snapnswe', 'snapNSWE', syncSnap); syncSnap();
+range('nsweRange', 'nsweRange', v => `±${v}°`);
+// remember which groups are folded
+for (const d of document.querySelectorAll('details[data-k]')) {
+  if (S.closed && d.dataset.k in S.closed) d.open = !S.closed[d.dataset.k];
+  d.addEventListener('toggle', () => { S.closed = { ...S.closed, [d.dataset.k]: !d.open }; save(); });
+}
+range('ringFade', 'ringFade', v => `${v} ms`, () => ringEl.style.setProperty('--rfade', S.ringFade + 'ms'));
+ringEl.style.setProperty('--rfade', S.ringFade + 'ms');
+range('dim', 'dim', v => `${v} %`);
+range('gripAt', 'gripAt', v => ({ 0: 'right', 90: 'bottom', 180: 'left', 270: 'top' })[v] || `${v}°`);
+markerEl.style.setProperty('--fade', S.fade + 'ms');
+renderCards();
+
+function layoutImgs() {
+  for (const [k] of STATES) {
+    const sh = shapes[k], im = imgs[k]; if (!sh) continue;
+    im.style.width = sh.w + 'px'; im.style.height = sh.h + 'px';
+    im.style.left = -sh.w / 2 + 'px'; im.style.top = -sh.h / 2 + 'px';
+  }
+  // the halo: a soft disc a little wider than the drag state's arms, as in the app
+  const r = (shapes.drag?.reach || 100) * 1.08;
+  Object.assign(haloEl.style, { width: 2 * r + 'px', height: 2 * r + 'px', left: -r + 'px', top: -r + 'px' });
+}
+
+// Switch the shown state. Grow: the incoming drawing starts at the outgoing one's reach and eases
+// to its own while the outgoing one eases to the incoming reach and fades, so the arms appear to
+// extend or retract as they do in the app. Crossfade: opacity only.
+function showState(prev, next) {
+  haloEl.classList.toggle('on', next === 'drag' && S.halo === 'on');
+  const inc = imgs[next], out = prev && imgs[prev];
+  const rIn = shapes[next]?.reach || 1, rOut = (prev && shapes[prev]?.reach) || rIn;
+  if (S.anim === 'grow' && out && S.fade > 0) {
+    inc.classList.add('instant');
+    inc.style.transform = `scale(${rOut / rIn})`;
+    void inc.offsetWidth; // commit the start size before the transition runs
+    inc.classList.remove('instant');
+    out.style.transform = `scale(${rIn / rOut})`;
+  } else if (out) {
+    out.style.transform = '';
+  }
+  inc.style.transform = 'scale(1)';
+  for (const [k] of STATES) imgs[k].classList.toggle('on', k === next);
+}
+layoutImgs();
+
+// ---------- scene (millimetres, Z up, like SolidCraft) ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+vp.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 1, 5000);
+camera.up.set(0, 0, 1);
+camera.position.set(250, -340, 260);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(10, 0, 20);
+controls.enableDamping = true;
+controls.update();
+
+scene.add(new THREE.HemisphereLight(0xf2f5fa, 0x5a6270, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(120, -180, 260); scene.add(sun);
+
+const bodyMat = new THREE.MeshStandardMaterial({ color: 0xa6adb8, roughness: .55, metalness: .1, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x23272e });
+const body = new THREE.Group(); scene.add(body);
+const pickables = [];
+function addPart(geo, at) {
+  const m = new THREE.Mesh(geo, bodyMat); m.position.copy(at); body.add(m); pickables.push(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), edgeMat); e.position.copy(at); body.add(e);
+}
+// a base block, a ramp down to the right, and a round boss on top (a curved face to place on)
+addPart(new THREE.BoxGeometry(140, 100, 30), new THREE.Vector3(0, 0, 15));
+const ramp = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(70, 0), new THREE.Vector2(0, 30)]);
+const rampGeo = new THREE.ExtrudeGeometry(ramp, { depth: 100, bevelEnabled: false });
+rampGeo.rotateX(Math.PI / 2); rampGeo.translate(70, 50, 0);
+addPart(rampGeo, new THREE.Vector3());
+const cyl = new THREE.CylinderGeometry(22, 22, 40, 64); cyl.rotateX(Math.PI / 2);
+addPart(cyl, new THREE.Vector3(-35, 10, 50));
+
+// the feature's preview: a translucent blue pad, like Rest's
+const padGeo = new THREE.BoxGeometry(36, 24, 6); padGeo.translate(0, 0, 3);
+const pad = new THREE.Group();
+pad.add(new THREE.Mesh(padGeo, new THREE.MeshStandardMaterial({ color: 0x4d8cff, transparent: true, opacity: .55, roughness: .4, depthWrite: false })));
+pad.add(new THREE.LineSegments(new THREE.EdgesGeometry(padGeo), new THREE.LineBasicMaterial({ color: 0x2a5fc4 })));
+scene.add(pad);
+
+// place: where the marker and the footprint are (follows the pointer at once); shown: where the
+// solid preview is, which in the app is recomputed off the window thread and trails the pointer
+const place = { p: new THREE.Vector3(20, -10, 30), n: new THREE.Vector3(0, 0, 1) };
+const shown = { p: place.p.clone(), n: place.n.clone() };
+const frame = { u: new THREE.Vector3(), v: new THREE.Vector3() };
+const padFrame = { u: new THREE.Vector3(), v: new THREE.Vector3() };
+function basis(n, out, turn = S.turn) {
+  const ref = Math.abs(n.x) < .9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+  const u = ref.clone().addScaledVector(n, -ref.dot(n)).normalize();
+  const v = new THREE.Vector3().crossVectors(n, u);
+  const a = THREE.MathUtils.degToRad(turn), ca = Math.cos(a), sa = Math.sin(a);
+  out.u.copy(u).multiplyScalar(ca).addScaledVector(v, sa);
+  out.v.copy(v).multiplyScalar(ca).addScaledVector(u, -sa);
+}
+let lastSync = 0;
+function placePad() {
+  shown.p.copy(place.p); shown.n.copy(place.n); lastSync = performance.now();
+  basis(place.n, frame); basis(shown.n, padFrame);
+  pad.matrixAutoUpdate = false;
+  pad.matrix.makeBasis(padFrame.u, padFrame.v, shown.n).setPosition(shown.p);
+}
+placePad();
+
+// ---------- interaction ----------
+const ray = new THREE.Raycaster();
+const ptr = { x: -1e4, y: -1e4, inside: false };
+let dragging = false, grab = { x: 0, y: 0 }, hovering = false;
+function toScreen(p) {
+  const v = p.clone().project(camera), r = vp.getBoundingClientRect();
+  return { x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height, front: v.z < 1 };
+}
+function local(e) { const r = vp.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function markerScreen() { return toScreen(place.p.clone().addScaledVector(place.n, 6)); }
+function pick(x, y) {
+  const r = vp.getBoundingClientRect();
+  ray.setFromCamera(new THREE.Vector2(x / r.width * 2 - 1, -(y / r.height) * 2 + 1), camera);
+  const hit = ray.intersectObjects(pickables, false)[0];
+  if (!hit || !hit.face) return null;
+  const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+  return { p: hit.point, n };
+}
+// The turn ring: centre on the face, the ball at the ring's bottom in the SVG, which is -v of the
+// turned frame. Turning reads the pointer's angle on the face plane against the unturned frame.
+let turning = false, turn0 = 0, ang0 = 0, ringHover = false;
+// at the move marker's height (the pad's top), so the turn and the move share one centre
+const ringCentre = () => place.p.clone().addScaledVector(place.n, 6);
+// The ring radius in mm. "SVG scale": the circle is ringSvgR SVG pixels times the ring's scale on
+// screen, measured along the face direction the camera foreshortens least, so the ring's strokes
+// match the marker's at the same scale and the ring keeps its screen size as you zoom.
+function ringRmm() {
+  if (S.ringSize === 'mm') return S.ringR;
+  // the long axis of the projected unit circle (the larger singular value of the projection of
+  // u and v), which is the same however far the frame is turned
+  const c = ringCentre(), o = toScreen(c), a = toScreen(c.clone().add(frame.u)), b = toScreen(c.clone().add(frame.v));
+  const ax = a.x - o.x, ay = a.y - o.y, bx = b.x - o.x, by = b.y - o.y;
+  const p = ax * ax + ay * ay, q = bx * bx + by * by, r = ax * bx + ay * by;
+  const pxPerMm = Math.max(Math.sqrt((p + q + Math.sqrt((p - q) ** 2 + 4 * r * r)) / 2), 1e-6);
+  return S.ringSvgR * S.ringScale / 100 / pxPerMm;
+}
+// the grip's direction in the SVG (degrees, 0 = right, 90 = down) on the face: SVG right is +u,
+// SVG down is -v
+function gripDir() {
+  const a = THREE.MathUtils.degToRad(S.gripAt);
+  return frame.u.clone().multiplyScalar(Math.cos(a)).addScaledVector(frame.v, -Math.sin(a));
+}
+const knobScreen = () => toScreen(ringCentre().addScaledVector(gripDir(), ringRmm()));
+const frame0 = { u: new THREE.Vector3(), v: new THREE.Vector3() };
+function planeAngle(x, y) {
+  const r = vp.getBoundingClientRect();
+  ray.setFromCamera(new THREE.Vector2(x / r.width * 2 - 1, -(y / r.height) * 2 + 1), camera);
+  const c = ringCentre(), q = new THREE.Vector3();
+  if (!ray.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(place.n, c), q)) return null;
+  basis(place.n, frame0, 0); q.sub(c);
+  return THREE.MathUtils.radToDeg(Math.atan2(q.dot(frame0.v), q.dot(frame0.u)));
+}
+const turnEl = document.getElementById('turn'), turnOut = document.getElementById('turnout');
+let snappedTo = '';
+// The grip's compass point on the face after a turn: the SVG angle (0 right, 90 down) less the
+// turn, since a turn goes from u towards v, which is up in the SVG.
+function gripCompass(turn) {
+  const a = (((S.gripAt - turn) % 360) + 360) % 360;
+  return ({ 0: 'E', 90: 'S', 180: 'W', 270: 'N' })[a] || '';
+}
+function setTurn(deg) {
+  // N, E, S, W pull the grip in within a few degrees; elsewhere the turn steps by the snap
+  const near = Math.round((deg - S.gripAt) / 90) * 90 + S.gripAt;
+  snappedTo = '';
+  // "only": the turn jumps between the four points, as a feature that may only face N, E, S or W
+  if (S.snapNSWE === 'only' || (S.snapNSWE === 'on' && Math.abs(deg - near) <= S.nsweRange)) { deg = near; snappedTo = gripCompass(near); }
+  else if (S.snap > 0) deg = Math.round(deg / S.snap) * S.snap;
+  S.turn = ((Math.round(deg) % 360) + 360) % 360;
+  turnEl.value = S.turn; turnOut.textContent = `${S.turn}°`;
+  basis(place.n, frame);
+}
+vp.addEventListener('pointermove', e => {
+  const l = local(e); ptr.x = l.x; ptr.y = l.y; ptr.inside = true;
+  if (turning) {
+    const a = planeAngle(l.x, l.y);
+    if (a != null) setTurn(turn0 + a - ang0);
+  }
+  if (dragging) {
+    const h = pick(l.x - grab.x, l.y - grab.y);
+    if (h) { place.p.copy(h.p); place.n.copy(h.n); basis(place.n, frame); }
+  }
+});
+vp.addEventListener('pointerleave', () => { ptr.inside = false; });
+// capture phase, so a press on the marker never reaches the orbit control
+vp.addEventListener('pointerdown', e => {
+  const l = local(e), m = markerScreen();
+  if (Math.hypot(l.x - m.x, l.y - m.y) > S.hit) {
+    const kb = knobScreen();
+    if (S.ring !== 'on' || Math.hypot(l.x - kb.x, l.y - kb.y) > S.hit) return;
+    const a = planeAngle(l.x, l.y); if (a == null) return;
+    e.stopPropagation(); e.preventDefault();
+    turning = true; controls.enabled = false; turn0 = S.turn; ang0 = a;
+    vp.setPointerCapture(e.pointerId);
+    return;
+  }
+  e.stopPropagation(); e.preventDefault();
+  // the offset is taken from the point on the face, not from the marker drawn on the pad's top:
+  // the drag picks face points, so the first move lands where the pad already is (no jump)
+  const f = toScreen(place.p);
+  dragging = true; controls.enabled = false; grab = { x: l.x - f.x, y: l.y - f.y };
+  vp.setPointerCapture(e.pointerId);
+}, true);
+const end = e => { if (!dragging && !turning) return; dragging = false; turning = false; controls.enabled = true; placePad(); save(); try { vp.releasePointerCapture(e.pointerId); } catch (_) {} };
+vp.addEventListener('pointerup', end); vp.addEventListener('pointercancel', end);
+
+// The footprint: the pad's outline on the face where the marker is, cased like the handles,
+// shown only while dragging (the app's look: near-white core over a dark edge).
+const PAD_HALF = { x: 18, y: 12 };
+const footEl = document.getElementById('foot');
+function drawFootprint() {
+  const on = dragging && S.foot === 'on';
+  footEl.style.display = on ? '' : 'none';
+  footEl.classList.toggle('blue', S.footStyle === 'blue');
+  if (!on) return;
+  const c = place.p.clone().addScaledVector(place.n, .2);
+  const pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => {
+    const q = toScreen(c.clone().addScaledVector(frame.u, a * PAD_HALF.x).addScaledVector(frame.v, b * PAD_HALF.y));
+    return `${q.x.toFixed(1)},${q.y.toFixed(1)}`;
+  }).join(' ');
+  for (const pl of footEl.querySelectorAll('polygon')) pl.setAttribute('points', pts);
+}
+
+// A CSS matrix3d that maps the element's corners (0,0) (w,0) (0,h) (w,h) to four screen points,
+// so the ring's SVG lies on the face in true perspective.
+function adj(m) { return [m[4]*m[8]-m[5]*m[7], m[2]*m[7]-m[1]*m[8], m[1]*m[5]-m[2]*m[4], m[5]*m[6]-m[3]*m[8], m[0]*m[8]-m[2]*m[6], m[2]*m[3]-m[0]*m[5], m[3]*m[7]-m[4]*m[6], m[1]*m[6]-m[0]*m[7], m[0]*m[4]-m[1]*m[3]]; }
+function mulmm(a, b) { const c = Array(9); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { let s = 0; for (let k = 0; k < 3; k++) s += a[3*i+k] * b[3*k+j]; c[3*i+j] = s; } return c; }
+function mulmv(m, v) { return [m[0]*v[0]+m[1]*v[1]+m[2]*v[2], m[3]*v[0]+m[4]*v[1]+m[5]*v[2], m[6]*v[0]+m[7]*v[1]+m[8]*v[2]]; }
+function toBasis(p) { const m = [p[0].x, p[1].x, p[2].x, p[0].y, p[1].y, p[2].y, 1, 1, 1]; const v = mulmv(adj(m), [p[3].x, p[3].y, 1]); return mulmm(m, [v[0], 0, 0, 0, v[1], 0, 0, 0, v[2]]); }
+function homography(w, h, dst) {
+  const t = mulmm(toBasis(dst), adj(toBasis([{ x: 0, y: 0 }, { x: w, y: 0 }, { x: 0, y: h }, { x: w, y: h }])));
+  for (let i = 0; i < 9; i++) t[i] /= t[8];
+  return `matrix3d(${t[0]},${t[3]},0,${t[6]},${t[1]},${t[4]},0,${t[7]},0,0,1,0,${t[2]},${t[5]},0,${t[8]})`;
+}
+let lastRing = '';
+// Sweep: the incoming state opens from the grip both ways round the circle, the outgoing one
+// folds back into the grip. Crossfade: opacity only, the whole circle at once.
+function showRing(prev, next) {
+  const inc = imgs[next], out = prev && imgs[prev];
+  if (S.ringAnim === 'sweep' && S.ringFade > 0) {
+    inc.classList.add('instant'); inc.style.setProperty('--sweep', '14deg');
+    void inc.offsetWidth;
+    inc.classList.remove('instant'); inc.style.setProperty('--sweep', '180deg');
+    if (out) out.style.setProperty('--sweep', '14deg');
+  } else {
+    inc.style.setProperty('--sweep', '180deg'); if (out) out.style.setProperty('--sweep', '180deg');
+  }
+  for (const [k] of RSTATES) imgs[k].classList.toggle('on', k === next);
+}
+const angLabel = document.getElementById('anglabel');
+function drawRing(markerHot) {
+  const sh = shapes.rnormal;
+  const show = S.ring === 'on' && sh;
+  ringEl.style.display = show ? '' : 'none';
+  if (!show) { compassEl.style.display = 'none'; angLabel.hidden = true; ringHover = false; return; }
+  const kb = knobScreen();
+  ringHover = !markerHot && !dragging && ptr.inside && Math.hypot(ptr.x - kb.x, ptr.y - kb.y) <= S.hit;
+  const pinned = { normal: 'rnormal', hover: 'rhover', drag: 'rdrag' }[S.pin];
+  const st = pinned || (turning ? 'rdrag' : ringHover ? 'rhover' : 'rnormal');
+  if (st !== lastRing) { showRing(lastRing, st); lastRing = st; }
+  ringEl.style.setProperty('--g', `${90 + S.gripAt}deg`);
+  // the handle not in use steps back while the other one works
+  ringEl.style.opacity = compassEl.style.opacity = dragging ? S.dim / 100 : 1;
+  // the SVG frame on the face: the circle's radius in the SVG becomes the ring radius in mm
+  const c = ringCentre(), mmPerPx = ringRmm() / S.ringSvgR, hw = sh.w / 2 * mmPerPx, hh = sh.h / 2 * mmPerPx;
+  const corner = (a, b) => toScreen(c.clone().addScaledVector(frame.u, a * hw).addScaledVector(frame.v, b * hh));
+  const pts = [corner(-1, 1), corner(1, 1), corner(-1, -1), corner(1, -1)];
+  ringEl.style.visibility = pts.every(q => q.front) ? 'visible' : 'hidden';
+  ringEl.style.width = sh.w + 'px'; ringEl.style.height = sh.h + 'px';
+  ringEl.style.transform = homography(sh.w, sh.h, pts);
+  // the compass: same centre and scale, drawn in the unturned frame so N, E, S, W stay put
+  const cs = shapes.rcompass;
+  const showCompass = cs && ({ always: true, hot: turning || ringHover, turn: turning, off: false })[S.compass];
+  compassEl.style.display = showCompass ? '' : 'none';
+  if (showCompass) {
+    basis(place.n, frame0, 0);
+    const cw = cs.w / 2 * mmPerPx, ch = cs.h / 2 * mmPerPx;
+    const cc = (a, b) => toScreen(c.clone().addScaledVector(frame0.u, a * cw).addScaledVector(frame0.v, b * ch));
+    const cp = [cc(-1, 1), cc(1, 1), cc(-1, -1), cc(1, -1)];
+    compassEl.style.visibility = cp.every(q => q.front) ? 'visible' : 'hidden';
+    compassEl.style.width = cs.w + 'px'; compassEl.style.height = cs.h + 'px';
+    compassEl.style.transform = homography(cs.w, cs.h, cp);
+  }
+  angLabel.hidden = !turning;
+  angLabel.classList.toggle('snapped', !!snappedTo);
+  if (turning) { angLabel.textContent = snappedTo ? `${S.turn}° · ${snappedTo}` : `${S.turn}°`; angLabel.style.transform = `translate(${kb.x + 14}px, ${kb.y + 10}px)`; }
+}
+
+// ---------- frame loop ----------
+const readout = document.getElementById('readout');
+let lastState = '';
+function resize() {
+  const r = vp.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(vp); resize();
+
+function tick() {
+  controls.update();
+  renderer.render(scene, camera);
+  const m = markerScreen();
+  hovering = ptr.inside && Math.hypot(ptr.x - m.x, ptr.y - m.y) <= S.hit;
+  const live = dragging ? 'drag' : hovering ? 'hover' : 'normal';
+  const state = S.pin === 'auto' ? live : S.pin;
+  if (state !== lastState) { showState(lastState, state); lastState = state; }
+  drawRing(hovering || dragging);
+  vp.style.cursor = dragging || turning ? 'grabbing' : hovering || ringHover ? 'grab' : '';
+
+  // the solid preview catches up once per recompute, as the app's preview job does
+  if ((dragging || turning) && performance.now() - lastSync >= S.lag) placePad();
+  drawFootprint();
+
+  const k = S.scale / 100;
+  let A = { x: 1, y: 0 }, B = { x: 0, y: 1 };
+  const view = camera.position.clone().sub(place.p).normalize();
+  const tilt = Math.round(THREE.MathUtils.radToDeg(Math.acos(Math.min(1, Math.abs(view.dot(place.n))))));
+  if (S.mode === 'face') {
+    // the marker lies on the face: its x and y follow the face's directions as the camera sees
+    // them, at a constant size for the longer one, so a tilted face squashes it
+    const c3 = place.p.clone().addScaledVector(place.n, 6);
+    const pu = toScreen(c3.clone().addScaledVector(frame.u, 10)), pv = toScreen(c3.clone().addScaledVector(frame.v, 10));
+    const a = { x: pu.x - m.x, y: pu.y - m.y }, b = { x: pv.x - m.x, y: pv.y - m.y };
+    const L = Math.max(Math.hypot(a.x, a.y), Math.hypot(b.x, b.y), 1e-6);
+    A = { x: a.x / L, y: a.y / L }; B = { x: -b.x / L, y: -b.y / L };
+  }
+  markerEl.style.transform = `translate(${m.x}px, ${m.y}px) matrix(${k * A.x}, ${k * A.y}, ${k * B.x}, ${k * B.y}, 0, 0)`;
+  markerEl.style.visibility = m.front ? 'visible' : 'hidden';
+  markerEl.style.opacity = turning ? S.dim / 100 : 1;
+  readout.textContent = `${state.padEnd(6)}  face tilt ${String(tilt).padStart(2)}°`;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

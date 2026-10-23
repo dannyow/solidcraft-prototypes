@@ -1,0 +1,12 @@
+# Machine-specific notes for Claude Code: never tracked
+CLAUDE.local.md
+.DS_Store
+.env
+*.local
+.pio/
+build/
+dist/
+node_modules/
+# Raw photos/videos and post drafts; tool data that must stay out of git
+media/
+data/

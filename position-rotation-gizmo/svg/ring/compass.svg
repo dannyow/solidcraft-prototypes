@@ -1,0 +1,28 @@
+<svg width="600" height="600" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<use xlink:href="#stroke0_18_774" fill="#EAEEF4" style="fill:#EAEEF4;fill:color(display-p3 0.9176 0.9333 0.9569);fill-opacity:1;"/>
+<mask id="stroke1_18_774" fill="white">
+<use xlink:href="#stroke0_18_774"/>
+</mask>
+<path d="M178.5 303H171.5C169.567 303 168 301.433 168 299.5C168 297.567 169.567 296 171.5 296H178.5C180.433 296 182 297.567 182 299.5C182 301.433 180.433 303 178.5 303Z" stroke-width="2" stroke="black" style="stroke:black;stroke-opacity:1;" mask="url(#stroke1_18_774)"/>
+<use xlink:href="#stroke2_18_774" fill="#EAEEF4" style="fill:#EAEEF4;fill:color(display-p3 0.9176 0.9333 0.9569);fill-opacity:1;"/>
+<mask id="stroke3_18_774" fill="white">
+<use xlink:href="#stroke2_18_774"/>
+</mask>
+<path d="M428.5 303H421.5C419.567 303 418 301.433 418 299.5C418 297.567 419.567 296 421.5 296H428.5C430.433 296 432 297.567 432 299.5C432 301.433 430.433 303 428.5 303Z" stroke-width="2" stroke="black" style="stroke:black;stroke-opacity:1;" mask="url(#stroke3_18_774)"/>
+<use xlink:href="#stroke4_18_774" fill="#EAEEF4" style="fill:#EAEEF4;fill:color(display-p3 0.9176 0.9333 0.9569);fill-opacity:1;"/>
+<mask id="stroke5_18_774" fill="white">
+<use xlink:href="#stroke4_18_774"/>
+</mask>
+<path d="M295.82 178.5L295.82 171.5C295.82 169.567 297.387 168 299.32 168C301.253 168 302.82 169.567 302.82 171.5L302.82 178.5C302.82 180.433 301.253 182 299.32 182C297.387 182 295.82 180.433 295.82 178.5Z" stroke-width="2" stroke="black" style="stroke:black;stroke-opacity:1;" mask="url(#stroke5_18_774)"/>
+<use xlink:href="#stroke6_18_774" fill="#EAEEF4" style="fill:#EAEEF4;fill:color(display-p3 0.9176 0.9333 0.9569);fill-opacity:1;"/>
+<mask id="stroke7_18_774" fill="white">
+<use xlink:href="#stroke6_18_774"/>
+</mask>
+<path d="M295.82 428.5L295.82 421.5C295.82 419.567 297.387 418 299.32 418C301.253 418 302.82 419.567 302.82 421.5L302.82 428.5C302.82 430.433 301.253 432 299.32 432C297.387 432 295.82 430.433 295.82 428.5Z" stroke-width="2" stroke="black" style="stroke:black;stroke-opacity:1;" mask="url(#stroke7_18_774)"/>
+<defs>
+<path id="stroke0_18_774" d="M182 299.5C182 297.567 180.433 296 178.5 296H171.5C169.567 296 168 297.567 168 299.5C168 301.433 169.567 303 171.5 303H178.5C180.433 303 182 301.433 182 299.5Z"/>
+<path id="stroke2_18_774" d="M432 299.5C432 297.567 430.433 296 428.5 296H421.5C419.567 296 418 297.567 418 299.5C418 301.433 419.567 303 421.5 303H428.5C430.433 303 432 301.433 432 299.5Z"/>
+<path id="stroke4_18_774" d="M299.32 182C301.253 182 302.82 180.433 302.82 178.5L302.82 171.5C302.82 169.567 301.253 168 299.32 168C297.387 168 295.82 169.567 295.82 171.5L295.82 178.5C295.82 180.433 297.387 182 299.32 182Z"/>
+<path id="stroke6_18_774" d="M299.32 432C301.253 432 302.82 430.433 302.82 428.5L302.82 421.5C302.82 419.567 301.253 418 299.32 418C297.387 418 295.82 419.567 295.82 421.5L295.82 428.5C295.82 430.433 297.387 432 299.32 432Z"/>
+</defs>
+</svg>
