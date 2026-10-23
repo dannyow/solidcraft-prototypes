@@ -296,7 +296,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // one key per prototype: every page on this site shares the browser storage of its address
 const KEY = 'position-rotation-gizmo';
 const OLD_KEYS = [];
-const defaults = { mode: 'screen', pin: 'auto', anim: 'grow', halo: 'on', foot: 'on', lag: 150, scale: 25, hit: 18, fade: 120, turn: 0, bg: 'dark', svgs: {}, ring: 'on', ringR: 30, ringSvgR: 125, snap: 5, ringSize: 'scale', gripAt: 0, compass: 'turn', ringAnim: 'sweep', ringFade: 220, dim: 25, footStyle: 'blue', snapNSWE: 'on', nsweRange: 8, closed: {} };
+// Daniel's tuning of 2026-10-23 (the drawings themselves come from svg/)
+const defaults = { mode: 'screen', pin: 'auto', anim: 'grow', halo: 'off', foot: 'on', lag: 600, scale: 39, hit: 28, fade: 360, turn: 0, bg: 'dark', svgs: {}, ring: 'on', ringR: 30, ringSvgR: 114, snap: 5, ringSize: 'scale', ringScale: 52, gripAt: 0, compass: 'turn', ringAnim: 'sweep', ringFade: 600, dim: 25, footStyle: 'blue', snapNSWE: 'on', nsweRange: 8, closed: {} };
 let S = { ...defaults };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 try {
