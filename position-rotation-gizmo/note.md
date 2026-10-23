@@ -2,6 +2,12 @@
 
 Some SolidCraft features are placed on a face of the model: a Rest pad, a Boss, a Snap Fit. Placing one means two things, choosing where it sits on the face and how it is turned. Today both are numbers in a dialog. This note describes handles that let you do both directly on the model, and the visual language they are drawn in. You can try them on a model in the [prototype](./).
 
+## Where handles stand
+
+Handles are secondary. You come to the model with something you want to make: a pad that has to sit here, a boss that has to line up with a hole. The model and that intention are what matters, and a handle is only a way to get there. A good handle helps you place the feature and then gets out of the way; it should never pull your attention away from the model or change how you work on it.
+
+That sets the tone for everything below. Handles stay quiet until you reach for them, say only what is needed at each moment, and step back as soon as another part of the work takes over. Their look is designed to be easy to ignore as much as easy to read.
+
 ## The problem
 
 A handle sits on top of the model, next to the feature's blue preview, the model's own edges and whatever else the view shows. It has to be found, read and used without a manual. Two handles on the same feature must not be confused with each other or with the preview they control. And the next manipulator SolidCraft adds should be able to use the same visual vocabulary instead of bringing its own.
