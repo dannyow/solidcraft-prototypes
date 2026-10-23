@@ -11,17 +11,17 @@ Browser prototypes for SolidCraft, published as a website
   defaults. Marker frames are 400 x 400 with the dot at the centre of the viewBox; ring frames
   are 600 x 600 with the circle (radius 125) at the centre and the grip on the right.
 - One folder per topic: the prototype as `index.html` and, when there is one, a design note as
-  `note.md` (front matter `layout: note`; GitHub Pages renders it as `note.html` with
-  `_layouts/note.html`). The front page has one section per topic linking both.
-- `_config.yml`: Jekyll settings for Pages; files for the repository only are excluded from the site.
+  plain Markdown in `note.md`, shown by the folder's small `note.html` (copy it from another
+  topic), which renders the Markdown in the browser with `shared/note.js` and `shared/note.css`.
+  The front page has one section per topic linking both.
+- `.nojekyll`: GitHub Pages serves the files as they are; nothing is built.
 - Each page keeps its settings in `localStorage` under its own key (the folder name), because all
   pages of the site share one browser origin.
 
 ## Build and run
 
 No build. Serve the folder and open it: `python3 -m http.server 8000`, then
-http://localhost:8000/ (the pages `fetch` their SVGs, which `file://` does not allow). The local
-server shows notes as raw Markdown; only Pages renders them.
+http://localhost:8000/ (the pages `fetch` their SVGs, which `file://` does not allow).
 Published with GitHub Pages from `main`, folder `/`.
 
 ## Working in this repo

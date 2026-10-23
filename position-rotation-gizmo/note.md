@@ -1,7 +1,3 @@
----
-layout: note
-title: "Placement handles: move and turn"
----
 
 # Placement handles: move and turn
 

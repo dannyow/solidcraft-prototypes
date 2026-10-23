@@ -8,3 +8,4 @@ these at run time:
 |---|---|---|---|
 | position-rotation-gizmo | three.js 0.160.0 and its OrbitControls add-on | MIT | https://cdn.jsdelivr.net/npm/three@0.160.0/ |
 | position-rotation-gizmo | IBM Plex Sans and IBM Plex Mono fonts | SIL Open Font License 1.1 | Google Fonts |
+| design notes (`shared/note.js`) | marked 12.0.2, Markdown renderer | MIT | https://cdn.jsdelivr.net/npm/marked@12.0.2/ |
