@@ -61,11 +61,21 @@ body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-s
 #ring img { --sweep: 180deg;
   -webkit-mask-image: conic-gradient(from calc(var(--g, 90deg) - var(--sweep)), #000 0deg calc(2 * var(--sweep)), transparent calc(2 * var(--sweep)));
   mask-image: conic-gradient(from calc(var(--g, 90deg) - var(--sweep)), #000 0deg calc(2 * var(--sweep)), transparent calc(2 * var(--sweep)));
+  -webkit-mask-image: conic-gradient(from calc(var(--g, 90deg) - var(--sweep)), #000 0deg calc(2 * var(--sweep)), transparent calc(2 * var(--sweep))),
+    radial-gradient(circle var(--hr, 0px) at var(--hx, 0px) var(--hy, 0px), transparent 99%, #000 100%);
+  mask-image: conic-gradient(from calc(var(--g, 90deg) - var(--sweep)), #000 0deg calc(2 * var(--sweep)), transparent calc(2 * var(--sweep))),
+    radial-gradient(circle var(--hr, 0px) at var(--hx, 0px) var(--hy, 0px), transparent 99%, #000 100%);
+  -webkit-mask-composite: source-in; mask-composite: intersect;
   transition: opacity var(--rfade, 220ms) ease, --sweep var(--rfade, 220ms) cubic-bezier(.215, .61, .355, 1); }
 #ring img.instant { transition: none; }
 .ring img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; max-height: none; opacity: 0;
   transition: opacity var(--fade, 120ms) ease; user-select: none; -webkit-user-drag: none; }
 .ring img.on { opacity: 1; }
+/* the grip drawn facing the viewer: a round cut of the ring's SVG around the grip, never foreshortened */
+.grip { position: absolute; left: 0; top: 0; border-radius: 50%; overflow: hidden; transform-origin: 0 0; transition: opacity 160ms ease; }
+.grip img { position: absolute; left: 0; top: 0; max-width: none; max-height: none; opacity: 0; transform-origin: 0 0;
+  transition: opacity var(--rfade, 220ms) ease; user-select: none; -webkit-user-drag: none; }
+.grip img.on { opacity: 1; }
 .anglabel { position: absolute; left: 0; top: 0; font: 500 12px var(--mono); color: #f2f4f8; background: rgba(15, 18, 24, .75);
   padding: 2px 6px; border-radius: 4px; pointer-events: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .halo { position: absolute; border-radius: 50%; background: rgba(107, 156, 255, .22); opacity: 0; transition: opacity var(--fade, 120ms) ease; }
@@ -141,7 +151,7 @@ img { max-width: 100%; }
 <body>
 <div class="app">
   <div class="vp" id="vp" data-bg="dark">
-    <div class="overlay"><div class="ring" id="compass"></div><div class="ring" id="ring"></div><svg class="foot" id="foot" style="display:none"><polygon class="edge"/><polygon class="core"/></svg><div class="marker" id="marker"></div><div class="anglabel" id="anglabel" hidden></div></div>
+    <div class="overlay"><div class="ring" id="compass"></div><div class="ring" id="ring"></div><div class="grip" id="grip"></div><svg class="foot" id="foot" style="display:none"><polygon class="edge"/><polygon class="core"/></svg><div class="marker" id="marker"></div><div class="anglabel" id="anglabel" hidden></div></div>
     <div class="readout" id="readout"></div>
     <div class="hint">Drag the marker to move · drag the ring's grip to turn · drag elsewhere to orbit</div>
   </div>
@@ -201,6 +211,12 @@ img { max-width: 100%; }
         <div class="field"><label for="ringR">Radius on the model</label><output id="ringRout"></output><input type="range" id="ringR" min="15" max="60" step="1"></div>
         <div class="field"><label for="ringSvgR">Circle radius in the SVG</label><output id="ringSvgRout"></output><input type="range" id="ringSvgR" min="40" max="290" step="1"></div>
         <div class="field"><label for="gripAt">Grip at</label><output id="gripAtout"></output><input type="range" id="gripAt" min="0" max="345" step="15"></div>
+        <div class="label">Drawn</div>
+        <div class="seg" id="ringview">
+          <button data-v="face">On the face</button>
+          <button data-v="grip">Grip faces you</button>
+          <button data-v="screen">Faces you</button>
+        </div>
         <div class="label">Between states</div>
         <div class="seg" id="ringanim">
           <button data-v="sweep">Sweep from the grip</button>
@@ -298,7 +314,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const KEY = 'position-rotation-gizmo';
 const OLD_KEYS = [];
 // Daniel's tuning of 2026-10-23 (the drawings themselves come from svg/)
-const defaults = { mode: 'screen', pin: 'auto', anim: 'grow', halo: 'off', foot: 'on', lag: 600, scale: 39, hit: 28, fade: 360, turn: 0, bg: 'dark', svgs: {}, ring: 'on', ringR: 30, ringSvgR: 114, snap: 5, ringSize: 'scale', ringScale: 52, gripAt: 0, compass: 'turn', ringAnim: 'sweep', ringFade: 600, dim: 25, footStyle: 'blue', snapNSWE: 'on', nsweRange: 8, closed: {} };
+const defaults = { mode: 'screen', pin: 'auto', anim: 'grow', halo: 'off', foot: 'on', lag: 600, scale: 39, hit: 28, fade: 360, turn: 0, bg: 'dark', svgs: {}, ring: 'on', ringR: 30, ringSvgR: 114, snap: 5, ringSize: 'scale', ringScale: 52, gripAt: 0, compass: 'turn', ringAnim: 'sweep', ringFade: 600, dim: 25, footStyle: 'blue', snapNSWE: 'on', nsweRange: 8, ringView: 'face', closed: {} };
 let S = { ...defaults };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 try {
@@ -384,6 +400,9 @@ const haloEl = document.createElement('div'); haloEl.className = 'halo'; markerE
 for (const [k] of STATES) { const im = document.createElement('img'); im.alt = ''; im.draggable = false; markerEl.appendChild(im); imgs[k] = im; }
 const ringEl = document.getElementById('ring');
 for (const [k] of RSTATES) { const im = document.createElement('img'); im.alt = ''; im.draggable = false; ringEl.appendChild(im); imgs[k] = im; }
+// copies of the ring states for the grip that faces the viewer
+const gripEl = document.getElementById('grip'), gimgs = {};
+for (const [k] of RSTATES) { const im = document.createElement('img'); im.alt = ''; im.draggable = false; gripEl.appendChild(im); gimgs[k] = im; }
 const compassEl = document.getElementById('compass');
 { const im = document.createElement('img'); im.alt = ''; im.draggable = false; im.className = 'on'; compassEl.appendChild(im); imgs.rcompass = im; }
 
@@ -424,7 +443,7 @@ function applyShape(state, text) {
   const p = parseSvg(text);
   const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(p.text);
   shapes[state] = { url, w: p.w, h: p.h, reach: measureReach(p.text, p.w, p.h), custom: text !== DEFAULT_SVG[state] };
-  imgs[state].src = url;
+  imgs[state].src = url; if (gimgs[state]) gimgs[state].src = url;
   renderCards(); layoutImgs();
 }
 function setShape(state, text) {
@@ -547,6 +566,7 @@ range('ringSvgR', 'ringSvgR', v => `${v} px`);
 range('snap', 'snap', v => v ? `${v}°` : 'off');
 segmented('compasswhen', 'compass');
 segmented('ringanim', 'ringAnim');
+segmented('ringview', 'ringView');
 segmented('footstyle', 'footStyle');
 const syncSnap = () => {
   document.getElementById('nsweRange').closest('.field').hidden = S.snapNSWE !== 'on';
@@ -693,11 +713,21 @@ function ringRmm() {
   if (S.ringSize === 'mm') return S.ringR;
   // the long axis of the projected unit circle (the larger singular value of the projection of
   // u and v), which is the same however far the frame is turned
+  return S.ringSvgR * S.ringScale / 100 / ringPxPerMm();
+}
+function ringPxPerMm() {
   const c = ringCentre(), o = toScreen(c), a = toScreen(c.clone().add(frame.u)), b = toScreen(c.clone().add(frame.v));
   const ax = a.x - o.x, ay = a.y - o.y, bx = b.x - o.x, by = b.y - o.y;
   const p = ax * ax + ay * ay, q = bx * bx + by * by, r = ax * bx + ay * by;
-  const pxPerMm = Math.max(Math.sqrt((p + q + Math.sqrt((p - q) ** 2 + 4 * r * r)) / 2), 1e-6);
-  return S.ringSvgR * S.ringScale / 100 / pxPerMm;
+  return Math.max(Math.sqrt((p + q + Math.sqrt((p - q) ** 2 + 4 * r * r)) / 2), 1e-6);
+}
+// screen pixels per SVG pixel for the drawings that face the viewer: the marker's scale, or in
+// "fixed on the model" the ring's largest scale on screen
+const ringPxPerSvg = () => S.ringSize === 'mm' ? ringPxPerMm() * S.ringR / S.ringSvgR : S.ringScale / 100;
+// screen angle (degrees, y down) of a direction on the face, from the ring's centre
+function screenAngle(dir) {
+  const c = ringCentre(), o = toScreen(c), a = toScreen(c.clone().add(dir));
+  return THREE.MathUtils.radToDeg(Math.atan2(a.y - o.y, a.x - o.x));
 }
 // the grip's direction in the SVG (degrees, 0 = right, 90 = down) on the face: SVG right is +u,
 // SVG down is -v
@@ -705,7 +735,12 @@ function gripDir() {
   const a = THREE.MathUtils.degToRad(S.gripAt);
   return frame.u.clone().multiplyScalar(Math.cos(a)).addScaledVector(frame.v, -Math.sin(a));
 }
-const knobScreen = () => toScreen(ringCentre().addScaledVector(gripDir(), ringRmm()));
+// "Faces you": the ring is a flat circle on screen, its grip at the screen direction of the grip on the face
+function knobScreen() {
+  if (S.ringView !== 'screen') return toScreen(ringCentre().addScaledVector(gripDir(), ringRmm()));
+  const o = toScreen(ringCentre()), a = THREE.MathUtils.degToRad(screenAngle(gripDir())), r = S.ringSvgR * ringPxPerSvg();
+  return { x: o.x + r * Math.cos(a), y: o.y + r * Math.sin(a), front: o.front };
+}
 const frame0 = { u: new THREE.Vector3(), v: new THREE.Vector3() };
 function planeAngle(x, y) {
   const r = vp.getBoundingClientRect();
@@ -809,13 +844,16 @@ function showRing(prev, next) {
   } else {
     inc.style.setProperty('--sweep', '180deg'); if (out) out.style.setProperty('--sweep', '180deg');
   }
-  for (const [k] of RSTATES) imgs[k].classList.toggle('on', k === next);
+  for (const [k] of RSTATES) { imgs[k].classList.toggle('on', k === next); gimgs[k].classList.toggle('on', k === next); }
 }
+// radius of the round cut around the grip, in SVG pixels (the grip bar and its chevron fit inside)
+const GRIP_CUT = 44;
 const angLabel = document.getElementById('anglabel');
 function drawRing(markerHot) {
   const sh = shapes.rnormal;
   const show = S.ring === 'on' && sh;
   ringEl.style.display = show ? '' : 'none';
+  gripEl.style.display = show && S.ringView === 'grip' ? '' : 'none';
   if (!show) { compassEl.style.display = 'none'; angLabel.hidden = true; ringHover = false; return; }
   const kb = knobScreen();
   ringHover = !markerHot && !dragging && ptr.inside && Math.hypot(ptr.x - kb.x, ptr.y - kb.y) <= S.hit;
@@ -824,14 +862,38 @@ function drawRing(markerHot) {
   if (st !== lastRing) { showRing(lastRing, st); lastRing = st; }
   ringEl.style.setProperty('--g', `${90 + S.gripAt}deg`);
   // the handle not in use steps back while the other one works
-  ringEl.style.opacity = compassEl.style.opacity = dragging ? S.dim / 100 : 1;
+  ringEl.style.opacity = compassEl.style.opacity = gripEl.style.opacity = dragging ? S.dim / 100 : 1;
   // the SVG frame on the face: the circle's radius in the SVG becomes the ring radius in mm
   const c = ringCentre(), mmPerPx = ringRmm() / S.ringSvgR, hw = sh.w / 2 * mmPerPx, hh = sh.h / 2 * mmPerPx;
   const corner = (a, b) => toScreen(c.clone().addScaledVector(frame.u, a * hw).addScaledVector(frame.v, b * hh));
   const pts = [corner(-1, 1), corner(1, 1), corner(-1, -1), corner(1, -1)];
-  ringEl.style.visibility = pts.every(q => q.front) ? 'visible' : 'hidden';
   ringEl.style.width = sh.w + 'px'; ringEl.style.height = sh.h + 'px';
-  ringEl.style.transform = homography(sh.w, sh.h, pts);
+  // the grip's point in the SVG (gripAt: 0 right, 90 down) and the round cut around it
+  const ga = THREE.MathUtils.degToRad(S.gripAt), gx = sh.w / 2 + S.ringSvgR * Math.cos(ga), gy = sh.h / 2 + S.ringSvgR * Math.sin(ga);
+  const gr = S.ringView === 'grip' ? GRIP_CUT : 0;
+  ringEl.style.setProperty('--hr', gr + 'px'); ringEl.style.setProperty('--hx', gx + 'px'); ringEl.style.setProperty('--hy', gy + 'px');
+  if (S.ringView === 'screen') {
+    // a flat circle turned so its grip points where the grip on the face points
+    const o = toScreen(c), s = ringPxPerSvg(), rot = screenAngle(gripDir()) - S.gripAt;
+    ringEl.style.visibility = o.front ? 'visible' : 'hidden';
+    ringEl.style.transform = `translate(${o.x}px, ${o.y}px) rotate(${rot}deg) scale(${s}) translate(${-sh.w / 2}px, ${-sh.h / 2}px)`;
+  } else {
+    ringEl.style.visibility = pts.every(q => q.front) ? 'visible' : 'hidden';
+    ringEl.style.transform = homography(sh.w, sh.h, pts);
+  }
+  if (S.ringView === 'grip') {
+    // the cut, unrotated so the grip points right (its bar runs down), then turned so the bar runs
+    // along the ring's tangent on screen; a radial turn looks crooked where the ring is foreshortened
+    const tangent = frame.u.clone().multiplyScalar(-Math.sin(ga)).addScaledVector(frame.v, -Math.cos(ga));
+    const s = ringPxPerSvg(), rot = screenAngle(tangent) - 90;
+    gripEl.style.visibility = kb.front ? 'visible' : 'hidden';
+    gripEl.style.width = gripEl.style.height = 2 * GRIP_CUT + 'px';
+    gripEl.style.transform = `translate(${kb.x}px, ${kb.y}px) rotate(${rot}deg) scale(${s}) translate(${-GRIP_CUT}px, ${-GRIP_CUT}px)`;
+    for (const [k] of RSTATES) {
+      const im = gimgs[k]; im.style.width = sh.w + 'px'; im.style.height = sh.h + 'px';
+      im.style.transform = `translate(${GRIP_CUT}px, ${GRIP_CUT}px) rotate(${-S.gripAt}deg) translate(${-gx}px, ${-gy}px)`;
+    }
+  }
   // the compass: same centre and scale, drawn in the unturned frame so N, E, S, W stay put
   const cs = shapes.rcompass;
   const showCompass = cs && ({ always: true, hot: turning || ringHover, turn: turning, off: false })[S.compass];
@@ -843,7 +905,10 @@ function drawRing(markerHot) {
     const cp = [cc(-1, 1), cc(1, 1), cc(-1, -1), cc(1, -1)];
     compassEl.style.visibility = cp.every(q => q.front) ? 'visible' : 'hidden';
     compassEl.style.width = cs.w + 'px'; compassEl.style.height = cs.h + 'px';
-    compassEl.style.transform = homography(cs.w, cs.h, cp);
+    if (S.ringView === 'screen') {
+      const o = toScreen(c), s = ringPxPerSvg(), rot = screenAngle(frame0.u);
+      compassEl.style.transform = `translate(${o.x}px, ${o.y}px) rotate(${rot}deg) scale(${s}) translate(${-cs.w / 2}px, ${-cs.h / 2}px)`;
+    } else compassEl.style.transform = homography(cs.w, cs.h, cp);
   }
   angLabel.hidden = !turning;
   angLabel.classList.toggle('snapped', !!snappedTo);
