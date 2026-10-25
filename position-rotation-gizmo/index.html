@@ -71,11 +71,9 @@ body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-s
 .ring img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; max-height: none; opacity: 0;
   transition: opacity var(--fade, 120ms) ease; user-select: none; -webkit-user-drag: none; }
 .ring img.on { opacity: 1; }
-/* the grip drawn facing the viewer: a round cut of the ring's SVG around the grip, never foreshortened */
-.grip { position: absolute; left: 0; top: 0; border-radius: 50%; overflow: hidden; transform-origin: 0 0; transition: opacity 160ms ease; }
-.grip img { position: absolute; left: 0; top: 0; max-width: none; max-height: none; opacity: 0; transform-origin: 0 0;
-  transition: opacity var(--rfade, 220ms) ease; user-select: none; -webkit-user-drag: none; }
-.grip img.on { opacity: 1; }
+/* the grip drawn facing the viewer (its own drawing, Grip.svg), never foreshortened */
+.grip { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: opacity 160ms ease; }
+.grip img { position: absolute; left: 0; top: 0; max-width: none; max-height: none; user-select: none; -webkit-user-drag: none; }
 .anglabel { position: absolute; left: 0; top: 0; font: 500 12px var(--mono); color: #f2f4f8; background: rgba(15, 18, 24, .75);
   padding: 2px 6px; border-radius: 4px; pointer-events: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .halo { position: absolute; border-radius: 50%; background: rgba(107, 156, 255, .22); opacity: 0; transition: opacity var(--fade, 120ms) ease; }
@@ -357,7 +355,8 @@ const DEFAULT_SVG = { ...SKETCH_SVG };
 const STATES = [['normal', 'Normal'], ['hover', 'Mouse over'], ['drag', 'Down + drag']];
 const RSTATES = [['rnormal', 'Normal'], ['rhover', 'Mouse over'], ['rdrag', 'Turning']];
 const COMPASS = [['rcompass', 'Compass (fixed)']];
-const ALL = [...STATES, ...RSTATES, ...COMPASS];
+const GRIP = [['rgrip', 'Grip (faces you)']];
+const ALL = [...STATES, ...RSTATES, ...COMPASS, ...GRIP];
 // Placeholder turn rings from the paper sketch until the Figma ones arrive: a thin ring with a
 // grip at the bottom, two long pills either side of a ball with a short pill past each end.
 function ringSvg(ring, grip, cap, knob) {
@@ -383,9 +382,11 @@ DEFAULT_SVG.rcompass = (() => {
 })();
 // the compass as Daniel drew it in Figma (NWSE.svg, 2026-10-23), replacing the placeholder above
 Object.assign(DEFAULT_SVG, SKETCH_RING);
+DEFAULT_SVG.rgrip = '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"/>';
 const FILES = {
   normal: 'svg/marker/normal.svg', hover: 'svg/marker/hover.svg', drag: 'svg/marker/active.svg',
   rnormal: 'svg/ring/normal.svg', rhover: 'svg/ring/hover.svg', rdrag: 'svg/ring/active.svg', rcompass: 'svg/ring/compass.svg',
+  rgrip: 'svg/ring/grip.svg',
 };
 const missing = [];
 await Promise.all(Object.entries(FILES).map(async ([k, path]) => {
@@ -400,9 +401,10 @@ const haloEl = document.createElement('div'); haloEl.className = 'halo'; markerE
 for (const [k] of STATES) { const im = document.createElement('img'); im.alt = ''; im.draggable = false; markerEl.appendChild(im); imgs[k] = im; }
 const ringEl = document.getElementById('ring');
 for (const [k] of RSTATES) { const im = document.createElement('img'); im.alt = ''; im.draggable = false; ringEl.appendChild(im); imgs[k] = im; }
-// copies of the ring states for the grip that faces the viewer
-const gripEl = document.getElementById('grip'), gimgs = {};
-for (const [k] of RSTATES) { const im = document.createElement('img'); im.alt = ''; im.draggable = false; gripEl.appendChild(im); gimgs[k] = im; }
+// the grip that faces the viewer: Daniel's Grip.svg (2026-10-25), a 600 x 600 frame like the ring,
+// the grip on the right at the ring's radius
+const gripEl = document.getElementById('grip');
+{ const im = document.createElement('img'); im.alt = ''; im.draggable = false; gripEl.appendChild(im); imgs.rgrip = im; }
 const compassEl = document.getElementById('compass');
 { const im = document.createElement('img'); im.alt = ''; im.draggable = false; im.className = 'on'; compassEl.appendChild(im); imgs.rcompass = im; }
 
@@ -443,7 +445,7 @@ function applyShape(state, text) {
   const p = parseSvg(text);
   const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(p.text);
   shapes[state] = { url, w: p.w, h: p.h, reach: measureReach(p.text, p.w, p.h), custom: text !== DEFAULT_SVG[state] };
-  imgs[state].src = url; if (gimgs[state]) gimgs[state].src = url;
+  imgs[state].src = url;
   renderCards(); layoutImgs();
 }
 function setShape(state, text) {
@@ -462,7 +464,7 @@ function renderCards() {
   cardsEl.innerHTML = ''; rcardsEl.innerHTML = '';
   for (const [k, name] of ALL) {
     const sh = shapes[k]; if (!sh) continue;
-    const ringCard = RSTATES.some(([r]) => r === k) || k === 'rcompass';
+    const ringCard = RSTATES.some(([r]) => r === k) || k === 'rcompass' || k === 'rgrip';
     const card = document.createElement('div'); card.className = 'card';
     const px = v => Math.round(v * S.scale / 100);
     card.innerHTML = `<div class="name">${name}</div><div class="thumb"><img alt="${name} marker" src="${sh.url}"></div>` +
@@ -484,6 +486,7 @@ function readFile(f, k) {
 function stateFromName(n) {
   n = n.toLowerCase();
   if (/compass|nswe|cardinal/.test(n)) return 'rcompass';
+  if (/grip/.test(n)) return 'rgrip';
   const pre = /rot|turn|ring|knob/.test(n) ? 'r' : '';
   if (/drag|down|active|press/.test(n)) return pre + 'drag';
   if (/hover|over/.test(n)) return pre + 'hover';
@@ -844,9 +847,10 @@ function showRing(prev, next) {
   } else {
     inc.style.setProperty('--sweep', '180deg'); if (out) out.style.setProperty('--sweep', '180deg');
   }
-  for (const [k] of RSTATES) { imgs[k].classList.toggle('on', k === next); gimgs[k].classList.toggle('on', k === next); }
+  for (const [k] of RSTATES) imgs[k].classList.toggle('on', k === next);
 }
-// radius of the round cut around the grip, in SVG pixels (the grip bar and its chevron fit inside)
+// radius of the hole cut in the ring on the face where the grip that faces you sits, in SVG pixels
+// (the ring's own grip bar and chevron fit inside)
 const GRIP_CUT = 44;
 const angLabel = document.getElementById('anglabel');
 function drawRing(markerHot) {
@@ -881,18 +885,15 @@ function drawRing(markerHot) {
     ringEl.style.visibility = pts.every(q => q.front) ? 'visible' : 'hidden';
     ringEl.style.transform = homography(sh.w, sh.h, pts);
   }
-  if (S.ringView === 'grip') {
-    // the cut, unrotated so the grip points right (its bar runs down), then turned so the bar runs
-    // along the ring's tangent on screen; a radial turn looks crooked where the ring is foreshortened
+  const gs = shapes.rgrip;
+  if (S.ringView === 'grip' && gs) {
+    // the grip points right in its frame (its bar runs down); turned so the bar runs along the
+    // ring's tangent on screen, since a radial turn looks crooked where the ring is foreshortened
     const tangent = frame.u.clone().multiplyScalar(-Math.sin(ga)).addScaledVector(frame.v, -Math.cos(ga));
     const s = ringPxPerSvg(), rot = screenAngle(tangent) - 90;
     gripEl.style.visibility = kb.front ? 'visible' : 'hidden';
-    gripEl.style.width = gripEl.style.height = 2 * GRIP_CUT + 'px';
-    gripEl.style.transform = `translate(${kb.x}px, ${kb.y}px) rotate(${rot}deg) scale(${s}) translate(${-GRIP_CUT}px, ${-GRIP_CUT}px)`;
-    for (const [k] of RSTATES) {
-      const im = gimgs[k]; im.style.width = sh.w + 'px'; im.style.height = sh.h + 'px';
-      im.style.transform = `translate(${GRIP_CUT}px, ${GRIP_CUT}px) rotate(${-S.gripAt}deg) translate(${-gx}px, ${-gy}px)`;
-    }
+    imgs.rgrip.style.width = gs.w + 'px'; imgs.rgrip.style.height = gs.h + 'px';
+    gripEl.style.transform = `translate(${kb.x}px, ${kb.y}px) rotate(${rot}deg) scale(${s}) translate(${-(gs.w / 2 + S.ringSvgR)}px, ${-gs.h / 2}px)`;
   }
   // the compass: same centre and scale, drawn in the unturned frame so N, E, S, W stay put
   const cs = shapes.rcompass;
