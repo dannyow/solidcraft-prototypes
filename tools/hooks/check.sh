@@ -27,7 +27,7 @@ for f in ${files[@]+"${files[@]}"}; do
   fi
   if [[ "$f" =~ \.($content_ext)$ ]]; then
     d=$(dirname "$f")
-    if ! ls "$d"/LICENSE* "$d"/*.LICENSE* >/dev/null 2>&1; then
+    if ! compgen -G "$d/LICENSE*" >/dev/null && ! compgen -G "$d/*.LICENSE*" >/dev/null; then
       echo "BLOCKED  $f: content file without a LICENSE next to it"; fail=1
     fi
     if ! grep -qF "$f" THIRD_PARTY.md 2>/dev/null && ! grep -qF "$(basename "$f")" THIRD_PARTY.md 2>/dev/null; then
