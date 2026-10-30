@@ -888,9 +888,19 @@ function drawRing(markerHot) {
   const gs = shapes.rgrip;
   if (S.ringView === 'grip' && gs) {
     // the grip points right in its frame (its bar runs down); turned so the bar runs along the
-    // ring's tangent on screen, since a radial turn looks crooked where the ring is foreshortened
+    // ring's tangent on screen, since a radial turn looks crooked where the ring is foreshortened.
+    // Near edge-on the tangent shrinks to nothing and perspective flips its sign, so it is signed
+    // by the side the camera is on and eased into the perpendicular of the radius.
     const tangent = frame.u.clone().multiplyScalar(-Math.sin(ga)).addScaledVector(frame.v, -Math.cos(ga));
-    const s = ringPxPerSvg(), rot = screenAngle(tangent) - 90;
+    const o = toScreen(c), te = toScreen(c.clone().addScaledVector(gripDir(), ringRmm()).add(tangent));
+    let tx = te.x - kb.x, ty = te.y - kb.y;
+    const rx = kb.x - o.x, ry = kb.y - o.y, rl = Math.hypot(rx, ry) || 1;
+    const front = camera.position.clone().sub(c).dot(place.n) >= 0 ? 1 : -1;
+    const px = -ry / rl * front, py = rx / rl * front; // the radius turned a quarter, clockwise from the front
+    if (tx * px + ty * py < 0) { tx = -tx; ty = -ty; }
+    const tl = Math.hypot(tx, ty), w = Math.min(1, Math.max(0, (tl / (ringPxPerMm() || 1) - 0.1) / 0.3));
+    const dx = tx / (tl || 1) * w + px * (1 - w), dy = ty / (tl || 1) * w + py * (1 - w);
+    const s = ringPxPerSvg(), rot = Math.atan2(dy, dx) * 180 / Math.PI - 90;
     gripEl.style.visibility = kb.front ? 'visible' : 'hidden';
     imgs.rgrip.style.width = gs.w + 'px'; imgs.rgrip.style.height = gs.h + 'px';
     gripEl.style.transform = `translate(${kb.x}px, ${kb.y}px) rotate(${rot}deg) scale(${s}) translate(${-(gs.w / 2 + S.ringSvgR)}px, ${-gs.h / 2}px)`;
